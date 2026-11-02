@@ -1,0 +1,10 @@
+# Nguồn gốc và tái lập
+
+- Dự án tham khảo: `/home/haiquy/Documents/Projects/LOGGER/data-logger`, HEAD khảo sát `3407c5ebb6c423edafbea56e24a1601f9010ccac`. Working tree có sửa đổi không liên quan; không chỉnh sửa hoặc hoàn nguyên repository đó. Không khẳng định toàn bộ working tree trùng HEAD.
+- `src/utils/AppPaths.*`, `LogSetup.*` được viết/điều chỉnh theo ý tưởng helper tương ứng `src/utils/system/` của data-logger; đổi định danh, đường dẫn, giới hạn và không dùng lệnh Linux/Pi. Thời gian TT10, catalog, parser, ingestion, storage, model, controller và UI là triển khai riêng theo kế hoạch; kiến trúc model/build tham khảo data-logger. Không sao chép sensor/Modbus/FTP/REST/UI Components.
+- Font `resources/fonts/Inter/` lấy từ cây tài nguyên data-logger; giữ nguyên `OFL.txt`. Không có logo từ nguồn cũ trong gói.
+- `shared/logger-ui-kit`: Git submodule, URL `https://github.com/quytttb/logger-ui-kit.git`, revision **`24ef01544e398e0e181933a71ee00d40f28c697e`**, giấy phép MIT. Working tree kit sạch lúc thiết lập; không dùng symlink sang logger và không sửa working tree logger. Clone dự án với `git clone --recurse-submodules` hoặc chạy `git submodule update --init --recursive`.
+- Qt kit dùng để thử Linux: `~/Qt/6.11.1/gcc_64`, CMake/Ninja, GCC; `packaging/qt_version.txt` là pin triển khai. Windows MSVC kit chưa được kiểm chứng.
+- `plan.md` là kế hoạch tham chiếu; đường dẫn thực tế của dự án là `APP_MAN_LED_va_DATALOGGER_NUOC_THAI/caongan_led`, không phải `APP_MAN_LED_QT` trong kế hoạch cũ. Fixture/mẫu được tạo giả, không phải bản sao file hiện trường.
+
+Kiểm tra kit: `git -C shared/logger-ui-kit rev-parse HEAD` và `git -C shared/logger-ui-kit status --short`. Nếu nhận source archive không có `.git`, đối chiếu hash archive và nội dung với revision do bên bàn giao xác nhận; script Windows chỉ cảnh báo khi không thể tự xác minh.

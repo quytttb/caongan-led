@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "branding": {"address": "Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên", "branchName": "CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP", "companyName": "CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV", "footerNote": "", "regulationText": ""},
+  "display": {"designHeight": 1200, "designWidth": 1920, "fullScreen": true, "targetScreenName": ""},
+  "storage": {"checkpointMaxRows": 50000, "checkpointRetentionDays": 30, "logMaxFileBytes": 4194304, "logMaxTotalBytes": 67108864, "logRetentionDays": 14},
+  "sources": [
+    {"allowLegacyPrefix": true, "folder": "", "futureToleranceSeconds": 120, "groupedFiveColumn": false, "id": "khi-thai", "maxDepth": 4, "name": "Khí thải", "recursive": true, "staleAfterSeconds": 900, "stationCode": "KHITO1"},
+    {"allowLegacyPrefix": true, "folder": "", "futureToleranceSeconds": 120, "groupedFiveColumn": false, "id": "nuoc-thai", "maxDepth": 4, "name": "Nước thải", "recursive": true, "staleAfterSeconds": 900, "stationCode": "NUONT1"}
+  ],
+  "channels": [
+    {"acceptedUnits": ["%V", "%"], "aliases": ["O2", "O₂"], "decimals": 1, "displayName": "Oxy", "group": "exhaust", "id": "o2", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "O₂", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "%V"},
+    {"acceptedUnits": ["mg/Nm³"], "aliases": ["CO"], "decimals": 1, "displayName": "Cacbon monoxit", "group": "exhaust", "id": "co", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "CO", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/Nm³"},
+    {"acceptedUnits": ["mg/Nm³"], "aliases": ["NOx", "NOX", "NOₓ"], "decimals": 1, "displayName": "Nitơ oxit", "group": "exhaust", "id": "nox", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "NOₓ", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/Nm³"},
+    {"acceptedUnits": ["mg/Nm³"], "aliases": ["SO2", "SO₂"], "decimals": 1, "displayName": "Lưu huỳnh đioxit", "group": "exhaust", "id": "so2", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "SO₂", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/Nm³"},
+    {"acceptedUnits": ["mg/Nm³"], "aliases": ["PM"], "decimals": 1, "displayName": "Bụi", "group": "exhaust", "id": "pm", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "PM", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/Nm³"},
+    {"acceptedUnits": ["°C"], "aliases": ["Temp", "TEMP"], "decimals": 1, "displayName": "Nhiệt độ khí thải", "group": "exhaust", "id": "temp_flue", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "Temp", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "°C"},
+    {"acceptedUnits": ["m³/h"], "aliases": ["Flow"], "decimals": 0, "displayName": "Lưu lượng khí", "group": "exhaust", "id": "flow_flue", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "Flow", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "m³/h"},
+    {"acceptedUnits": ["kPa"], "aliases": ["P"], "decimals": 2, "displayName": "Áp suất", "group": "exhaust", "id": "pressure_flue", "sourceId": "khi-thai", "staleAfterSeconds": 900, "stationCode": "KHITO1", "symbol": "P", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "kPa"},
+    {"acceptedUnits": ["-"], "aliases": ["pH", "PH"], "decimals": 1, "displayName": "Độ pH", "group": "wastewater", "id": "ph", "sourceId": "nuoc-thai", "staleAfterSeconds": 900, "stationCode": "NUONT1", "symbol": "pH", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "-"},
+    {"acceptedUnits": ["mg/L"], "aliases": ["TSS"], "decimals": 1, "displayName": "Chất rắn lơ lửng", "group": "wastewater", "id": "tss", "sourceId": "nuoc-thai", "staleAfterSeconds": 900, "stationCode": "NUONT1", "symbol": "TSS", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/L"},
+    {"acceptedUnits": ["mg/L"], "aliases": ["COD"], "decimals": 1, "displayName": "Nhu cầu oxy hóa học", "group": "wastewater", "id": "cod", "sourceId": "nuoc-thai", "staleAfterSeconds": 900, "stationCode": "NUONT1", "symbol": "COD", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/L"},
+    {"acceptedUnits": ["mg/L"], "aliases": ["NH4+", "NH₄⁺", "NH4", "NH₄"], "decimals": 2, "displayName": "Amoni", "group": "wastewater", "id": "nh4", "sourceId": "nuoc-thai", "staleAfterSeconds": 900, "stationCode": "NUONT1", "symbol": "NH₄⁺", "threshold": {"enabled": false, "high": null, "low": null}, "unit": "mg/L"}
+  ]
+}

@@ -1,0 +1,76 @@
+name: Draft Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Validate tag and project version
+        id: meta
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          tag = os.environ['TAG']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag):
+              raise SystemExit(f'Invalid tag: {tag}; expected vMAJOR.MINOR.PATCH')
+          cmake = pathlib.Path('CMakeLists.txt').read_text(encoding='utf-8')
+          match = re.search(r'project\s*\(\s*caongan_led\s+VERSION\s+(\d+\.\d+\.\d+)', cmake)
+          if not match or match.group(1) != tag[1:]:
+              raise SystemExit('Tag must match CMake project version')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'version={match.group(1)}\n')
+          PY
+
+  checks:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  release:
+    needs: [validate, checks]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: caongan-led-windows-${{ github.sha }}
+          path: release-assets
+      - name: Verify expected artifacts
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          cd release-assets
+          sha256sum -c "caongan-led-${VERSION}-win-x64.zip.sha256"
+      - name: Create draft prerelease
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Cao Ngạn LED ${{ needs.validate.outputs.version }} — thử nghiệm
+          draft: true
+          prerelease: true
+          make_latest: false
+          generate_release_notes: true
+          body: |
+            Bản thử nghiệm, chưa được chấp thuận đưa vào vận hành. Cần kiểm tra trên máy Windows/LED thực,
+            hợp đồng dữ liệu, giấy phép và soak test theo `docs/acceptance-checklist.md`.
+          files: |
+            release-assets/*.zip
+            release-assets/*.zip.sha256
+          fail_on_unmatched_files: true

@@ -1,0 +1,8 @@
+{
+  "screens": [
+    { "name": "Test operator", "x": 0, "y": 0, "width": 1280, "height": 800 },
+    { "name": "Test LED", "x": 1280, "y": 0, "width": 1920, "height": 1200 },
+    { "name": "Duplicate", "x": 3200, "y": 0, "width": 640, "height": 480 },
+    { "name": "Duplicate", "x": 3840, "y": 0, "width": 640, "height": 480 }
+  ]
+}

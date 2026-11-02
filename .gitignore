@@ -1,0 +1,26 @@
+# Build/đóng gói và cấu hình riêng của máy phát triển
+/build*/
+/dist/
+/.cache/
+/.vs/
+CMakeUserPresets.json
+*.user
+
+# Dữ liệu vận hành, cấu hình cục bộ và secret không đưa lên Git
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+*.lock
+caongan-led.json
+*.json.backup
+*.pem
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+__pycache__/
+.DS_Store
