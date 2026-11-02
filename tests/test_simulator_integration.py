@@ -66,6 +66,10 @@ def main():
         env = os.environ.copy()
         env.update(QT_QPA_PLATFORM="offscreen", QT_FATAL_WARNINGS="1",
                    XDG_RUNTIME_DIR=str(xdg), CAONGAN_LED_BASE_DIR=str(app_data))
+        if sys.platform == "win32":
+            # Qt offscreen không dùng Windows font database và Qt 6 không còn
+            # đóng gói lib/fonts. Giữ fatal warnings để phát hiện lỗi thật.
+            env["QT_QPA_FONTDIR"] = str(PROJECT / "resources" / "fonts" / "Inter")
         for name in ("CAONGAN_LED_DATA_DIR", "CAONGAN_LED_CONFIG_DIR", "CAONGAN_LED_LOG_DIR"):
             env.pop(name, None)
         db = app_data / "data" / "snapshot.db"
