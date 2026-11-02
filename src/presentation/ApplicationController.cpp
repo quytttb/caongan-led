@@ -366,16 +366,18 @@ bool ApplicationController::positionLedWindow(QWindow *window) const
 {
     if (!window)
         return false;
-    if (m_previewMode)
-        return true;
-
-    const QString target = m_config.display.targetScreenName.trimmed();
-    if (target.isEmpty())
+    QScreen *screen = nullptr;
+    if (m_previewMode) {
+        screen = QGuiApplication::primaryScreen();
+    } else {
+        const QString target = m_config.display.targetScreenName.trimmed();
+        const QList<QScreen *> matches = matchingScreens(target);
+        if (matches.size() != 1)
+            return false;
+        screen = matches.constFirst();
+    }
+    if (!screen)
         return false;
-    const QList<QScreen *> matches = matchingScreens(target);
-    if (matches.size() != 1)
-        return false;
-    QScreen *screen = matches.constFirst();
     // Di chuyển trước khi hiện toàn màn hình, kể cả khi các màn nằm
     // trên cùng một virtual desktop (setScreen không tự dời tọa độ).
     window->setScreen(screen);
@@ -386,11 +388,6 @@ bool ApplicationController::positionLedWindow(QWindow *window) const
 QStringList ApplicationController::simulationScenarios() const
 {
     return simulationScenarioNames();
-}
-
-bool ApplicationController::ledFullScreen() const
-{
-    return !m_previewMode && m_config.display.fullScreen;
 }
 
 QString ApplicationController::configPath() const
@@ -574,33 +571,18 @@ QString ApplicationController::updateBranding(const QString &companyName,
 
 QString ApplicationController::updateTargetScreen(const QString &name)
 {
-    return updateDisplay(name, m_config.display.fullScreen);
-}
-
-QString ApplicationController::updateDisplay(const QString &targetScreenName, bool fullScreen)
-{
-    const QString name = targetScreenName.trimmed();
-    if (!name.isEmpty()) {
-        const qsizetype count = matchingScreens(name).size();
+    const QString target = name.trimmed();
+    if (!target.isEmpty()) {
+        const qsizetype count = matchingScreens(target).size();
         if (count == 0)
-            return QStringLiteral("Màn hình “%1” không còn kết nối").arg(name);
+            return QStringLiteral("Màn hình “%1” không còn kết nối").arg(target);
         if (count > 1)
-            return QStringLiteral("Có nhiều màn hình cùng tên “%1”; không thể chọn an toàn").arg(name);
+            return QStringLiteral("Có nhiều màn hình cùng tên “%1”; không thể chọn an toàn").arg(target);
     }
 
-    const bool fullScreenChanged = (m_config.display.fullScreen != fullScreen);
     AppConfig next = m_config;
-    next.display.targetScreenName = name;
-    next.display.fullScreen = fullScreen;
-
-    const QString error = commitConfiguration(next, false);
-    if (error.isEmpty() && fullScreenChanged) {
-        // Cùng một output nhưng đổi windowed/full-screen vẫn phải cập nhật cửa
-        // sổ LED; updateWindowVisibility() không phát khi visibility không đổi.
-        emit ledWindowChanged();
-        updateWindowVisibility();
-    }
-    return error;
+    next.display.targetScreenName = target;
+    return commitConfiguration(next, false);
 }
 
 QString ApplicationController::reloadConfiguration()

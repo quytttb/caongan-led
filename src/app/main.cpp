@@ -4,6 +4,10 @@
 #include "utils/AppPaths.h"
 #include "utils/LogSetup.h"
 
+#ifdef Q_OS_WIN
+#include "WindowsFramelessHelper.h"
+#endif
+
 #include "ThemeSetup.h"
 
 #include <QCommandLineOption>
@@ -71,6 +75,10 @@ QString absoluteConfigPath(const QString &text)
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+#ifdef Q_OS_WIN
+    WindowsFramelessHelper framelessHelper;
+    app.installNativeEventFilter(&framelessHelper);
+#endif
     QCoreApplication::setOrganizationName(QStringLiteral("CaoNgan"));
     QCoreApplication::setOrganizationDomain(QStringLiteral("caongan.local"));
     QCoreApplication::setApplicationName(QStringLiteral("CaonganLed"));
@@ -89,7 +97,7 @@ int main(int argc, char *argv[])
         QStringLiteral("path"));
     QCommandLineOption previewOption(
         QStringList{QStringLiteral("preview")},
-        QStringLiteral("Mở cửa sổ LED dạng cửa sổ để kiểm tra (không cần màn LED thật)."));
+        QStringLiteral("Hiển thị LED toàn màn hình trên màn chính để kiểm tra (không cần màn LED thật)."));
     QCommandLineOption simulateOption(
         QStringList{QStringLiteral("simulate")},
         QStringLiteral("Bật dữ liệu mô phỏng khi khởi động; không ghi vào cấu hình."));
@@ -163,19 +171,40 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+#ifdef Q_OS_WIN
+    for (QWindow *window : QGuiApplication::allWindows()) {
+        if (window->objectName() == QLatin1String("operatorWindow")) {
+            framelessHelper.setWindow(window);
+            break;
+        }
+    }
+#endif
+
     if (parser.isSet(verifyWindowsOption)) {
-        QTimer::singleShot(500, &app, []() {
+        QTimer::singleShot(500, &app, [&]() {
             bool ledVisible = false;
+            bool ledFullScreen = false;
+            bool ledFrameless = false;
             bool operatorVisible = false;
+            bool operatorFrameless = true;
             for (const QWindow *window : QGuiApplication::allWindows()) {
-                if (window->objectName() == QLatin1String("ledWindow"))
+                if (window->objectName() == QLatin1String("ledWindow")) {
                     ledVisible = window->isVisible();
-                else if (window->objectName() == QLatin1String("operatorWindow"))
+                    ledFullScreen = window->visibility() == QWindow::FullScreen;
+                    ledFrameless = window->flags().testFlag(Qt::FramelessWindowHint);
+                } else if (window->objectName() == QLatin1String("operatorWindow")) {
                     operatorVisible = window->isVisible();
+                }
             }
-            if (!ledVisible || !operatorVisible) {
+#ifdef Q_OS_WIN
+            if (QGuiApplication::platformName() == QLatin1String("windows"))
+                operatorFrameless = framelessHelper.hasNoTitleBar();
+#endif
+            if (!ledVisible || !ledFullScreen || !ledFrameless || !operatorVisible || !operatorFrameless) {
                 qCritical() << "Kiểm tra preview thất bại: LED hiển thị =" << ledVisible
-                            << ", vận hành hiển thị =" << operatorVisible;
+                            << ", toàn màn hình =" << ledFullScreen << ", không viền =" << ledFrameless
+                            << ", vận hành hiển thị =" << operatorVisible
+                            << ", không có title bar native =" << operatorFrameless;
                 QCoreApplication::exit(3);
                 return;
             }

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Window
-import CaonganLed.App
 
 // Khung thiết kế cố định 1920 × 1200. Cửa sổ LED co giãn bằng scale ở
 // LedWindow.qml; bố cục bên trong không đổi theo DPI/màn hình.

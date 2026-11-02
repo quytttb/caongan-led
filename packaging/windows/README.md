@@ -15,7 +15,7 @@ Build script xác minh phiên bản Qt, revision và working tree kit nếu có 
 
 Script không chứng minh đủ mọi QML import/DLL hay quyền phân phối. Rà soát `THIRD_PARTY_NOTICES.md`, license Qt thực tế và MSVC Redistributable chính thức; chỉ cài redistributable khi được duyệt. Trên Windows sạch không cài Qt/dev tools, xác minh checksum ZIP, giải nén vào thư mục version có quyền đọc, thử với tài khoản vận hành và CWD khác, kiểm tra log/SQLite/QML/plugin, test 1/2 màn và DPI. Không chạy giả lập trên LED công khai như dữ liệu thật.
 
-Sau deploy, có thể chạy `smoke.ps1 -PackageDir <thu-muc-package> -ScratchDir <thu-muc-moi>` trên Windows: script yêu cầu app xác nhận hai cửa sổ preview có trạng thái visible rồi thoát, kiểm tra SQLite, dùng PATH không chứa Qt build. Thư mục scratch phải chưa tồn tại; script không xóa dữ liệu. CI dùng bước này nhưng nó không thay thế kiểm thử máy sạch, LED hay 72 giờ.
+Sau deploy, có thể chạy `smoke.ps1 -PackageDir <thu-muc-package> -ScratchDir <thu-muc-moi>` trên Windows: script yêu cầu app xác nhận LED preview hiển thị toàn màn hình không viền, cửa sổ vận hành hiển thị không có title bar native rồi thoát, kiểm tra SQLite, dùng PATH không chứa Qt build. Thư mục scratch phải chưa tồn tại; script không xóa dữ liệu. CI dùng bước này nhưng nó không thay thế kiểm thử máy sạch, LED hay 72 giờ.
 
 ## Task Scheduler — chỉ cấu hình sau phê duyệt
 

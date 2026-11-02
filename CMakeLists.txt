@@ -119,6 +119,10 @@ qt_add_executable(caongan_led
     src/app/main.cpp
 )
 
+if(WIN32)
+    target_sources(caongan_led PRIVATE src/app/WindowsFramelessHelper.cpp)
+endif()
+
 qt_add_qml_module(caongan_led
     URI CaonganLed.App
     VERSION 1.0
@@ -129,6 +133,7 @@ qt_add_qml_module(caongan_led
         src/app/qml/ParameterTile.qml
         src/app/qml/LedStatusLabel.qml
         src/app/qml/OperatorWindow.qml
+        src/app/qml/WindowChromeButton.qml
         src/app/qml/SourceSettingsPage.qml
         src/app/qml/ChannelSettingsPage.qml
         src/app/qml/DisplaySettingsPage.qml

@@ -35,9 +35,7 @@ class ApplicationController : public QObject
     Q_PROPERTY(bool simulationActive READ simulationActive NOTIFY simulationChanged)
     Q_PROPERTY(QString simulationScenario READ simulationScenario NOTIFY simulationChanged)
     Q_PROPERTY(bool previewMode READ previewMode CONSTANT)
-    Q_PROPERTY(bool ledFullScreen READ ledFullScreen NOTIFY ledWindowChanged)
     Q_PROPERTY(bool ledWindowVisible READ ledWindowVisible NOTIFY ledWindowChanged)
-    Q_PROPERTY(bool fullScreenEnabled READ fullScreenEnabled NOTIFY configChanged)
     Q_PROPERTY(QString exhaustCaption READ exhaustCaption NOTIFY statesChanged)
     Q_PROPERTY(QString wastewaterCaption READ wastewaterCaption NOTIFY statesChanged)
     Q_PROPERTY(QString statusSummary READ statusSummary NOTIFY statusSummaryChanged)
@@ -75,9 +73,7 @@ public:
     bool simulationActive() const { return m_simulationActive; }
     QString simulationScenario() const { return m_simulationScenario; }
     bool previewMode() const { return m_previewMode; }
-    bool ledFullScreen() const;
     bool ledWindowVisible() const { return m_ledWindowVisible; }
-    bool fullScreenEnabled() const { return m_config.display.fullScreen; }
     QString exhaustCaption() const { return m_exhaustCaption; }
     QString wastewaterCaption() const { return m_wastewaterCaption; }
     QString statusSummary() const { return m_statusSummary; }
@@ -114,7 +110,6 @@ public:
                                        const QString &regulationText,
                                        const QString &footerNote);
     Q_INVOKABLE QString updateTargetScreen(const QString &name);
-    Q_INVOKABLE QString updateDisplay(const QString &targetScreenName, bool fullScreen);
     Q_INVOKABLE bool positionLedWindow(QWindow *window) const;
     Q_INVOKABLE QString reloadConfiguration();
     Q_INVOKABLE void requestRescan();

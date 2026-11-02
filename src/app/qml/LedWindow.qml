@@ -1,20 +1,17 @@
 import QtQuick
 import QtQuick.Window
-import CaonganLed.App
 
 Window {
     id: win
     objectName: "ledWindow"
     title: app.branding.companyName || "Cao Ngạn"
     color: "black"
-    flags: app.ledFullScreen ? (Qt.FramelessWindowHint | Qt.Window) : Qt.Window
+    flags: Qt.FramelessWindowHint | Qt.Window
     visibility: app.ledWindowVisible && targetReady
-                ? (app.ledFullScreen ? Window.FullScreen : Window.Windowed)
+                ? Window.FullScreen
                 : Window.Hidden
-    width: app.ledFullScreen ? 1920 : 1280
-    height: app.ledFullScreen ? 1200 : 800
-    x: 40
-    y: 40
+    width: 1920
+    height: 1200
 
     property bool targetReady: false
     property string positionedName: ""

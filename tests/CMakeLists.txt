@@ -29,6 +29,18 @@ target_link_libraries(tst_log_ui PRIVATE caongan_presentation Qt6::Gui Qt6::Qml 
     LoggerKit::theme logger_ui_kit_themeplugin)
 target_compile_definitions(tst_log_ui PRIVATE
     CAONGAN_QML_SOURCE_DIR="${PROJECT_SOURCE_DIR}/src/app/qml")
+caongan_add_test(tst_window_ui)
+target_link_libraries(tst_window_ui PRIVATE caongan_presentation Qt6::Gui Qt6::Qml Qt6::Quick
+    Qt6::QuickControls2 LoggerKit::theme logger_ui_kit_themeplugin)
+target_compile_definitions(tst_window_ui PRIVATE
+    CAONGAN_QML_SOURCE_DIR="${PROJECT_SOURCE_DIR}/src/app/qml")
+qt_add_resources(tst_window_ui "test_brand"
+    PREFIX "/branding"
+    BASE "${PROJECT_SOURCE_DIR}/resources"
+    FILES "${PROJECT_SOURCE_DIR}/resources/factory-logo.jpg")
+set_tests_properties(tst_window_ui PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json")
 set_tests_properties(tst_presentation PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-data"

@@ -7,7 +7,7 @@ Mẫu đầy đủ: `sample-data/caongan-led.example.json`. Sao chép để th�
 Các nhóm chính:
 
 - `branding`: tên, chi nhánh, địa chỉ, nội dung quy chuẩn/footer. Nội dung mặc định chưa được duyệt, không phải tuyên bố pháp lý.
-- `display`: `targetScreenName` là tên Qt, rỗng thì không mở LED công khai; `fullScreen`; kích thước thiết kế bắt buộc 1920×1200. Tên màn không bảo đảm duy nhất hay bất biến.
+- `display`: `targetScreenName` là tên Qt, rỗng thì không mở LED công khai; kích thước thiết kế bắt buộc 1920×1200. LED luôn toàn màn hình và không viền; trường `fullScreen` cũ được giữ để tương thích file JSON nhưng không còn ảnh hưởng cách hiển thị, kể cả khi có giá trị `false`. Tên màn không bảo đảm duy nhất hay bất biến.
 - `sources`: `id`, `folder` tuyệt đối hoặc rỗng, `stationCode`, `staleAfterSeconds` (mặc định 900), `futureToleranceSeconds` (120), `allowLegacyPrefix` (true), `groupedFiveColumn` (false), `recursive` và `maxDepth`. Mã `KHITO1`/`NUONT1` chỉ là ví dụ mặc định chưa xác nhận.
 - `channels`: 12 ID/thứ tự tại catalog, `sourceId`/`stationCode`, `aliases`, `unit`, `acceptedUnits`, `decimals`, `staleAfterSeconds` và `threshold` (`enabled`, `low`, `high`). Giá trị bằng cận vẫn trong khoảng; so sánh trước làm tròn. Không bật ngưỡng khi chưa có phê duyệt. Thay timeout ở form nguồn cũng cập nhật timeout các kênh thuộc nguồn.
 - `storage`: giới hạn checkpoint SQLite được dùng khi pruning; các trường `logRetentionDays`, `logMaxFileBytes`, `logMaxTotalBytes` hiện **chưa được nối với logger runtime**. Logger dùng mặc định trong mã; xem [todo](todo.md).

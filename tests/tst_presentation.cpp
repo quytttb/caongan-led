@@ -84,14 +84,14 @@ void TestPresentation::screenPlacement()
     }
     QVERIFY(screen);
     QVERIFY(screen != QGuiApplication::primaryScreen());
-    QVERIFY(!controller.updateDisplay(QStringLiteral("Duplicate"), false).isEmpty());
+    QVERIFY(!controller.updateTargetScreen(QStringLiteral("Duplicate")).isEmpty());
     QVERIFY(!controller.ledWindowVisible());
-    QCOMPARE(controller.updateDisplay(screen->name(), false), QString());
+    QCOMPARE(controller.updateTargetScreen(screen->name()), QString());
     QVERIFY(controller.ledWindowVisible());
     QVERIFY(controller.positionLedWindow(&window));
     QCOMPARE(window.screen(), screen);
     QCOMPARE(window.position(), screen->geometry().topLeft());
-    QCOMPARE(controller.updateDisplay(QString(), false), QString());
+    QCOMPARE(controller.updateTargetScreen(QString()), QString());
     QVERIFY(!controller.ledWindowVisible());
     QVERIFY(!controller.positionLedWindow(&window));
     controller.shutdown();
@@ -109,6 +109,8 @@ void TestPresentation::previewNeedsNoTarget()
     QWindow window;
     QVERIFY(controller.ledWindowVisible());
     QVERIFY(controller.positionLedWindow(&window));
+    QCOMPARE(window.screen(), QGuiApplication::primaryScreen());
+    QCOMPARE(window.position(), QGuiApplication::primaryScreen()->geometry().topLeft());
     controller.shutdown();
 }
 

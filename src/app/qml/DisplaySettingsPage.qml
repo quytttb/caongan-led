@@ -11,7 +11,6 @@ Item {
 
     function syncScreenSelection() {
         useLedCheck.checked = app.targetScreenName.length > 0
-        fullScreenCheck.checked = app.fullScreenEnabled
         let found = -1
         for (let i = 0; i < app.screens.length; ++i) {
             if (app.screens[i].name === app.targetScreenName) {
@@ -119,7 +118,7 @@ Item {
 
                         CheckBox {
                             id: useLedCheck
-                            text: "Hiển thị cửa sổ LED công khai trên màn hình đã chọn"
+                            text: "Hiển thị LED công khai trên màn hình đã chọn"
                             font.family: "Inter"
                         }
 
@@ -132,19 +131,13 @@ Item {
                             valueRole: "name"
                         }
 
-                        CheckBox {
-                            id: fullScreenCheck
-                            text: "Toàn màn hình trên output LED (khuyến nghị khi vận hành)"
-                            font.family: "Inter"
-                        }
-
                         Text {
                             Layout.fillWidth: true
                             text: app.previewMode
-                                  ? "Cửa sổ LED đang hiển thị trên màn hình hiện tại."
+                                  ? "LED preview luôn toàn màn hình trên màn chính. Dùng Alt+Tab để trở lại cửa sổ vận hành."
                                   : (app.targetScreenName.length > 0
-                                     ? ("Đang chọn: " + app.targetScreenName)
-                                     : "Chưa chọn output — cửa sổ LED công khai đang ẩn.")
+                                     ? ("LED toàn màn hình, không viền. Đang chọn: " + app.targetScreenName)
+                                     : "Chưa chọn output — LED công khai đang ẩn.")
                             color: AppColors.textMuted
                             font.family: "Inter"
                             font.pixelSize: 13
@@ -175,11 +168,11 @@ Item {
                                     const chosen = useLedCheck.checked ? (screenCombo.currentValue || "") : ""
                                     dialog.ask(
                                         "Lưu cấu hình hiển thị",
-                                        (chosen.length ? ("Màn hình LED: " + chosen) : "Cửa sổ LED công khai sẽ ẩn") +
-                                        "\nChế độ: " + (fullScreenCheck.checked ? "toàn màn hình" : "cửa sổ") +
+                                        (chosen.length ? ("Màn hình LED: " + chosen) : "LED công khai sẽ ẩn") +
+                                        "\nChế độ: toàn màn hình, không viền" +
                                         "\n\nThay đổi áp dụng ngay, không đổi cấu hình hiển thị của Windows.",
                                         function() {
-                                            const error = app.updateDisplay(chosen, fullScreenCheck.checked)
+                                            const error = app.updateTargetScreen(chosen)
                                             if (error.length > 0) {
                                                 page.statusIsError = true
                                                 page.statusText = error

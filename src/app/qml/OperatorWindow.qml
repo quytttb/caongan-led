@@ -2,18 +2,24 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
+import QtQuick.Window
 import LoggerKit.Theme
 
 ApplicationWindow {
     id: win
     objectName: "operatorWindow"
     title: (app.branding.companyName || "Cao Ngạn") + " — Vận hành"
-    width: 1440
-    height: 920
+    width: Math.max(minimumWidth, Math.min(1440, screen ? screen.desktopAvailableWidth : 1440))
+    height: Math.max(minimumHeight, Math.min(920, screen ? screen.desktopAvailableHeight : 920))
     minimumWidth: 1120
     minimumHeight: 760
     visible: true
     color: AppColors.surface
+    // Trên Windows, native event filter chỉ bỏ non-client area của cửa sổ
+    // này, giữ lại resize/snap của hệ điều hành. Các nền tảng khác dùng Qt.
+    flags: Qt.Window | Qt.WindowSystemMenuHint | Qt.WindowMinimizeButtonHint
+           | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint
+           | (Qt.platform.os === "windows" ? 0 : Qt.FramelessWindowHint)
 
     Material.theme: AppTheme.materialTheme
     Material.primary: AppTheme.primary
@@ -26,6 +32,13 @@ ApplicationWindow {
     property string dateText: Qt.formatDateTime(new Date(), "dd/MM/yyyy")
 
     onClosing: app.quit()
+
+    function toggleMaximize() {
+        if (visibility === Window.Maximized)
+            showNormal()
+        else
+            showMaximized()
+    }
 
     Timer {
         interval: 1000
@@ -59,10 +72,23 @@ ApplicationWindow {
                 color: AppColors.elevatedBorder
             }
 
+            MouseArea {
+                objectName: "operatorTitleBarDragArea"
+                anchors.fill: parent
+                onPressed: mouse => {
+                    if (mouse.button === Qt.LeftButton)
+                        win.startSystemMove()
+                }
+                onDoubleClicked: mouse => {
+                    if (mouse.button === Qt.LeftButton)
+                        win.toggleMaximize()
+                }
+            }
+
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 22
-                anchors.rightMargin: 22
+                anchors.rightMargin: 12
                 spacing: 14
 
                 Rectangle {
@@ -151,6 +177,30 @@ ApplicationWindow {
                         color: AppColors.textMuted
                         font.family: "Inter"
                         font.pixelSize: 10
+                    }
+                }
+
+                RowLayout {
+                    spacing: 2
+
+                    WindowChromeButton {
+                        objectName: "operatorMinimizeButton"
+                        kind: "minimize"
+                        description: "Thu nhỏ"
+                        onClicked: win.showMinimized()
+                    }
+                    WindowChromeButton {
+                        objectName: "operatorMaximizeButton"
+                        kind: "maximize"
+                        maximized: win.visibility === Window.Maximized
+                        description: maximized ? "Khôi phục kích thước" : "Phóng to"
+                        onClicked: win.toggleMaximize()
+                    }
+                    WindowChromeButton {
+                        objectName: "operatorCloseButton"
+                        kind: "close"
+                        description: "Đóng ứng dụng"
+                        onClicked: win.close()
                     }
                 }
             }
@@ -344,5 +394,40 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    // Frameless trên X11/Wayland không có viền resize mặc định. Chỉ đặt
+    // vùng bắt chuột ở mép; phần còn lại của UI và popup vẫn dùng bình thường.
+    Item {
+        anchors.fill: parent
+        z: 1000
+        visible: Qt.platform.os !== "windows" && win.visibility === Window.Windowed
+
+        component ResizeHandle: MouseArea {
+            property int edge: 0
+            hoverEnabled: true
+            cursorShape: {
+                if (edge === Qt.TopEdge || edge === Qt.BottomEdge)
+                    return Qt.SizeVerCursor
+                if (edge === Qt.LeftEdge || edge === Qt.RightEdge)
+                    return Qt.SizeHorCursor
+                if (edge === (Qt.TopEdge | Qt.LeftEdge) || edge === (Qt.BottomEdge | Qt.RightEdge))
+                    return Qt.SizeFDiagCursor
+                return Qt.SizeBDiagCursor
+            }
+            onPressed: mouse => {
+                if (mouse.button === Qt.LeftButton)
+                    win.startSystemResize(edge)
+            }
+        }
+
+        ResizeHandle { x: 8; y: 0; width: parent.width - 16; height: 6; edge: Qt.TopEdge }
+        ResizeHandle { x: 8; y: parent.height - 6; width: parent.width - 16; height: 6; edge: Qt.BottomEdge }
+        ResizeHandle { x: 0; y: 8; width: 6; height: parent.height - 16; edge: Qt.LeftEdge }
+        ResizeHandle { x: parent.width - 6; y: 8; width: 6; height: parent.height - 16; edge: Qt.RightEdge }
+        ResizeHandle { x: 0; y: 0; width: 8; height: 8; edge: Qt.TopEdge | Qt.LeftEdge }
+        ResizeHandle { x: parent.width - 8; y: 0; width: 8; height: 8; edge: Qt.TopEdge | Qt.RightEdge }
+        ResizeHandle { x: 0; y: parent.height - 8; width: 8; height: 8; edge: Qt.BottomEdge | Qt.LeftEdge }
+        ResizeHandle { x: parent.width - 8; y: parent.height - 8; width: 8; height: 8; edge: Qt.BottomEdge | Qt.RightEdge }
     }
 }

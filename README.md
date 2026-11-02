@@ -16,7 +16,9 @@ ctest --test-dir build --output-on-failure
 ./build/caongan_led --preview --simulate --scenario 'Flow 6 chữ số'
 ```
 
-`--preview` mở LED dạng cửa sổ; `--simulate` tạm dừng nhập nguồn và hiển thị dữ liệu giả **không có nhãn trên màn LED**. Không dùng số hoặc ngưỡng thử làm dữ liệu vận hành. Cấu hình và database mặc định vẫn được tạo trong vùng dữ liệu ứng dụng; để cách ly hoàn toàn, đặt `CAONGAN_LED_BASE_DIR` tới một thư mục thử riêng. Chạy `--help` để xem tùy chọn; `--config <đường-dẫn>` chỉ đổi file cấu hình, không đổi database/log hay khóa một instance.
+LED luôn toàn màn hình, không viền; bố cục giữ tỉ lệ thiết kế 1920 × 1200 nên có thể có dải đen khi màn hình khác tỉ lệ. `--preview` hiển thị LED toàn màn hình trên màn chính, không cần chọn output; dùng Alt+Tab để chuyển về cửa sổ vận hành khi chỉ có một màn hình. Cửa sổ vận hành có thanh tiêu đề riêng, hỗ trợ kéo, thu nhỏ, phóng to và đổi kích thước.
+
+`--simulate` tạm dừng nhập nguồn và hiển thị dữ liệu giả **không có nhãn trên màn LED**. Không dùng số hoặc ngưỡng thử làm dữ liệu vận hành. Cấu hình và database mặc định vẫn được tạo trong vùng dữ liệu ứng dụng; để cách ly hoàn toàn, đặt `CAONGAN_LED_BASE_DIR` tới một thư mục thử riêng. Chạy `--help` để xem tùy chọn; `--config <đường-dẫn>` chỉ đổi file cấu hình, không đổi database/log hay khóa một instance.
 
 Trang **Nhật ký** trong cửa sổ vận hành cho phép chọn log hiện tại hoặc log đã xoay vòng, làm mới, sao chép nội dung đang xem và xuất toàn bộ tệp. Màn xem giới hạn 1 MiB cuối; tệp xuất tối đa 64 MiB. Log có thể chứa đường dẫn, giá trị và trạng thái kênh, cần kiểm tra trước khi chia sẻ.
 
