@@ -2,7 +2,7 @@
 
 Ứng dụng thử nghiệm C++20 / Qt Quick hiển thị 12 thông số khí thải và nước thải; đọc file TT10, không kết nối cảm biến, Modbus hay thay đổi file nguồn. Cửa sổ LED và cửa sổ vận hành tách riêng; khung thiết kế 1920 × 1200.
 
-**Chưa sẵn sàng thay ứng dụng vận hành.** Chưa build/đóng gói trên Windows, chưa thử LED/EDID, chưa đối chiếu file nguồn thực, chưa chạy bền 72 giờ; còn các hạn chế kỹ thuật tại [docs/todo.md](docs/todo.md). Không cài Task Scheduler, thay cấu hình receiver hay chạy song song trên inbox thật trước khi được phê duyệt.
+**Chưa sẵn sàng thay ứng dụng vận hành.** Build/đóng gói Windows và smoke đã đạt trên GitHub-hosted runner, nhưng chưa thử trên Windows sạch/máy đích, LED/EDID, file nguồn thực hoặc chạy bền 72 giờ; còn các hạn chế kỹ thuật tại [docs/todo.md](docs/todo.md). Không cài Task Scheduler, thay cấu hình receiver hay chạy song song trên inbox thật trước khi được phê duyệt.
 
 ## Chạy thử trên Linux
 

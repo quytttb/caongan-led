@@ -14,7 +14,8 @@
 
 ## Chưa xác minh tại nơi triển khai
 
-- [ ] Build Release và package Windows/Visual C++ x64; chạy trên máy sạch không có Qt/dev tools, kiểm tra QML, qwindows, SQLite, redistributable, shortcut có CWD khác và quyền tài khoản. PowerShell và XML scheduler chưa chạy trên Windows.
+- [x] Build Release, CTest, package và smoke Windows/Visual C++ x64 trên GitHub-hosted runner ([run 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271)); đây không phải máy sạch/PC đích.
+- [ ] Chạy package trên máy sạch không có Qt/dev tools và PC đích, kiểm tra QML, qwindows, SQLite, redistributable, shortcut có CWD khác và quyền tài khoản. Mẫu XML scheduler chưa được thử/cài trên Windows.
 - [ ] LED thật: mode 1920×1200 qua HDMI/quang/EDID, physical 1280×960 mm/tỷ lệ, không cắt hoặc méo; Extend/Duplicate, 100/125/150% DPI, hotplug, sleep/wake, reboot và crash. Hai tỷ lệ 16:10 và 4:3 cần đo, không tự bù.
 - [ ] Thu và duyệt file khí/nước thật, thư mục nhận/quyền/cơ chế hoàn tất, nhịp, mã trạm, timestamp, correction, pH, PM, NH₄⁺/NH₄-N, NOx, trạng thái bridge, ngưỡng và nội dung quy chuẩn. Đối chiếu với nguồn được phép; không tranh inbox với app cũ.
 - [ ] Soak ≥72 giờ trên máy đích/tương đương, ghi CPU/RAM/disk/latency, restart/reconnect và kiểm tra log/DB không tăng vô hạn; chạy pilot và rollback theo biên bản được phê duyệt.

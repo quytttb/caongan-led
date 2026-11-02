@@ -11,6 +11,8 @@ Workflow tham khảo cách tổ chức của `quytttb/data-logger`, điều ch�
 
 Không đặt secret, dữ liệu nguồn hay cấu hình vận hành trong Git hoặc artifact. Các file TT10 trong gói là mẫu giả. `qmllint` chưa kiểm tra nhóm `unqualified`; CI chạy xanh không chứng minh màn thật đọc rõ, không thay thế máy Windows sạch, thiết bị nguồn hoặc thử 72 giờ.
 
+Lần chạy tham chiếu ngày 02/11/2026: [CI 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271), commit `38c8ae7`; Linux và Windows đều đạt, có artifact Windows thử nghiệm. Artifact CI có thời hạn, không phải bản phát hành chính thức.
+
 ## Bản nháp theo tag
 
 `.github/workflows/build-release.yml` chỉ chạy khi đẩy tag `vMAJOR.MINOR.PATCH` trùng `project(... VERSION ...)` trong `CMakeLists.txt`. Nó chạy lại toàn bộ CI của đúng commit/tag, tải artifact Windows, xác minh SHA-256 và tạo **draft prerelease**, không tự xuất bản hay đánh dấu bản mới nhất. Không cần token cá nhân: bước tạo draft dùng `GITHUB_TOKEN` với `contents: write` giới hạn cho job đó.

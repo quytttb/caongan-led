@@ -1,6 +1,6 @@
 # Windows: build, đóng gói và triển khai thử
 
-**Tình trạng: dự thảo, chưa được chạy trên Windows.** Không cài tự động, không ghi registry/service, không cấu hình autologon hoặc sửa hệ thống CEMS. Chỉ tiếp tục sau khi kỹ thuật và nhà máy phê duyệt.
+**Tình trạng: thử nghiệm.** Build, deploy và smoke đã chạy thành công trên Windows 2022 GitHub-hosted runner; chưa kiểm tra trên Windows sạch hay PC/LED đích. Không cài tự động, không ghi registry/service, không cấu hình autologon hoặc sửa hệ thống CEMS. Chỉ tiếp tục sau khi kỹ thuật và nhà máy phê duyệt.
 
 ## Build
 
