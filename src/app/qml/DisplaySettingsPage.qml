@@ -393,7 +393,7 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: "Dữ liệu và ngưỡng demo chỉ tồn tại trong bộ nhớ khi mô phỏng; không ghi vào cấu hình vận hành. Màn hình công khai luôn có nhãn MÔ PHỎNG."
+                                text: "Dữ liệu và ngưỡng demo chỉ tồn tại trong bộ nhớ khi mô phỏng; không ghi vào cấu hình vận hành. Màn LED không có nhãn mô phỏng."
                             color: AppColors.textMuted
                             font.family: "Inter"
                             font.pixelSize: 13
@@ -415,7 +415,7 @@ Item {
                                     dialog.ask(
                                         "Bật dữ liệu mô phỏng",
                                         "Cảnh: " + scenario +
-                                        "\n\nDữ liệu thật sẽ tạm dừng nhập trong lúc mô phỏng. Màn LED công khai sẽ hiện nhãn MÔ PHỎNG. Không dùng khi đang vận hành thật.",
+                                        "\n\nDữ liệu thật sẽ tạm dừng nhập trong lúc mô phỏng. Màn LED không có nhãn mô phỏng. Không dùng khi đang vận hành thật.",
                                         function() {
                                             if (app.simulationActive)
                                                 app.applySimulationScenario(scenario)

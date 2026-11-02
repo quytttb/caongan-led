@@ -149,6 +149,12 @@ qt_add_resources(caongan_led "app_fonts"
         resources/fonts/Inter/OFL.txt
 )
 
+qt_add_resources(caongan_led "factory_brand"
+    PREFIX "/branding"
+    BASE "resources"
+    FILES resources/factory-logo.jpg
+)
+
 target_compile_definitions(caongan_led PRIVATE
     CAONGAN_LED_VERSION="${PROJECT_VERSION}"
 )

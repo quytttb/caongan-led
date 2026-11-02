@@ -31,13 +31,13 @@ Item {
         case "unknownStatus":
             return "#D0D0D0"
         default:
-            return "#6C7883"
+            return "#FFFFFF"
         }
     }
 
     Rectangle {
         anchors.fill: parent
-        color: "#080C10"
+        color: "#000000"
         radius: 6
         border.width: 2
         border.color: root.accentFor(root.stateKey)
@@ -57,35 +57,25 @@ Item {
 
     Text {
         id: unitText
-        x: symbolText.x + symbolText.implicitWidth + 16
+        anchors.right: parent.right
+        anchors.rightMargin: 20
         y: 20
         width: 180
         text: root.unit
-        color: "#AEB8C2"
+        color: "#FFFFFF"
         font.family: "Inter"
         font.pixelSize: 30
+        horizontalAlignment: Text.AlignRight
         elide: Text.ElideRight
-        renderType: Text.NativeRendering
-    }
-
-    Text {
-        id: timeText
-        anchors.right: parent.right
-        anchors.rightMargin: 16
-        y: 22
-        text: root.timeText
-        color: "#6F7B86"
-        font.family: "Inter"
-        font.pixelSize: 22
         renderType: Text.NativeRendering
     }
 
     Text {
         id: valueText
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 54
+        y: 62
         width: parent.width - 32
-        height: 122
+        height: 110
         text: root.valueText
         color: root.accentFor(root.stateKey)
         font.family: "Inter"
@@ -100,10 +90,24 @@ Item {
 
     LedStatusLabel {
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 180
-        stateKey: root.stateKey
-        text: root.statusText
+        y: parent.height - 52
+        stateKey: root.stateKey === "withinLimit" || root.stateKey === "exceedsLimit" ? "measuring" : root.stateKey
+        text: root.stateKey === "withinLimit" || root.stateKey === "exceedsLimit" ? "ĐANG ĐO" : root.statusText
         fontSize: 30
         maximumWidth: parent.width - 24
+    }
+
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 175
+        width: parent.width - 24
+        text: "VƯỢT NGƯỠNG"
+        visible: root.stateKey === "exceedsLimit"
+        color: "#FF7070"
+        font.family: "Inter"
+        font.pixelSize: 23
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
+        renderType: Text.NativeRendering
     }
 }

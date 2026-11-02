@@ -33,7 +33,7 @@ QString displayStateText(DisplayState state)
     case DisplayState::WithinLimit:     return QStringLiteral("TRONG GIỚI HẠN");
     case DisplayState::ExceedsLimit:    return QStringLiteral("VƯỢT NGƯỠNG");
     case DisplayState::Calibrating:     return QStringLiteral("HIỆU CHUẨN");
-    case DisplayState::DeviceFault:     return QStringLiteral("LỖI THIẾT BỊ");
+    case DisplayState::DeviceFault:     return QStringLiteral("BÁO LỖI THIẾT BỊ");
     case DisplayState::Stale:           return QStringLiteral("DỮ LIỆU CŨ");
     case DisplayState::FutureTimestamp: return QStringLiteral("THỜI GIAN KHÔNG HỢP LỆ");
     case DisplayState::Invalid:         return QStringLiteral("DỮ LIỆU KHÔNG HỢP LỆ");

@@ -17,7 +17,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "#030506"
+        color: "#000000"
     }
 
     Timer {
@@ -39,16 +39,25 @@ Item {
         y: 24
         width: 1872
         height: 132
-        color: "#080D12"
+        color: "#000000"
         radius: 6
         border.width: 1
         border.color: "#26323D"
 
+        Image {
+            x: 20
+            y: 12
+            width: 105
+            height: 105
+            source: "qrc:/branding/factory-logo.jpg"
+            fillMode: Image.PreserveAspectFit
+        }
+
         Text {
             id: companyText
-            x: 26
+            x: 140
             y: 16
-            width: 1240
+            width: 1020
             text: root.brand.companyName || ""
             color: "#FFFFFF"
             font.family: "Inter"
@@ -59,11 +68,11 @@ Item {
         }
 
         Text {
-            x: 26
+            x: 140
             y: 66
-            width: 1240
+            width: 1020
             text: root.brand.branchName || ""
-            color: "#C6D0D9"
+            color: "#FFFFFF"
             font.family: "Inter"
             font.pixelSize: 25
             elide: Text.ElideRight
@@ -72,11 +81,11 @@ Item {
         }
 
         Text {
-            x: 26
+            x: 140
             y: 98
-            width: 1240
+            width: 1020
             text: root.brand.address || ""
-            color: "#8593A0"
+            color: "#FFFFFF"
             font.family: "Inter"
             font.pixelSize: 21
             elide: Text.ElideRight
@@ -86,62 +95,30 @@ Item {
 
         Text {
             x: 1340
-            y: 16
-            width: 506
-            text: "GIỜ HIỆN TẠI"
-            color: "#8E9CA9"
-            font.family: "Inter"
-            font.pixelSize: 20
-            horizontalAlignment: Text.AlignRight
-            renderType: Text.NativeRendering
-        }
-
-        Text {
-            x: 1340
-            y: 42
+            y: 10
             width: 506
             text: root.clockText
             color: "#FFFFFF"
-            font.family: "Inter"
+            font.family: "monospace"
             font.pixelSize: 52
             font.bold: true
+            font.letterSpacing: 1
             horizontalAlignment: Text.AlignRight
             renderType: Text.NativeRendering
         }
 
         Text {
             x: 1340
-            y: 100
+            y: 76
             width: 506
             text: root.dateText
-            color: "#AEB8C2"
+            color: "#FFFFFF"
             font.family: "Inter"
-            font.pixelSize: 23
+            font.pixelSize: 32
             horizontalAlignment: Text.AlignRight
             renderType: Text.NativeRendering
         }
 
-        Rectangle {
-            x: 1030
-            y: 80
-            width: 286
-            height: 38
-            radius: 4
-            visible: app.simulationActive
-            color: "#3A2C00"
-            border.width: 1
-            border.color: "#FFD60A"
-
-            Text {
-                anchors.centerIn: parent
-                text: "MÔ PHỎNG • " + app.simulationScenario
-                color: "#FFD60A"
-                font.family: "Inter"
-                font.pixelSize: 20
-                font.bold: true
-                renderType: Text.NativeRendering
-            }
-        }
     }
 
     // ---------------------------------------------------------------------
@@ -152,7 +129,7 @@ Item {
         y: 192
         width: 8
         height: 40
-        color: "#00E5FF"
+        color: "#FF3030"
     }
 
     Text {
@@ -175,9 +152,9 @@ Item {
         width: 1416
         height: 48
         text: app.exhaustCaption
-        color: "#96A3AF"
+        color: "#FFFFFF"
         font.family: "Inter"
-        font.pixelSize: 27
+        font.pixelSize: 34
         horizontalAlignment: Text.AlignRight
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideLeft
@@ -186,7 +163,7 @@ Item {
 
     Rectangle {
         x: 24
-        y: 756
+        y: 840
         width: 8
         height: 40
         color: "#00E5FF"
@@ -194,7 +171,7 @@ Item {
 
     Text {
         x: 48
-        y: 740
+        y: 824
         width: 420
         height: 48
         text: "NƯỚC THẢI"
@@ -208,13 +185,13 @@ Item {
 
     Text {
         x: 480
-        y: 740
+        y: 824
         width: 1416
         height: 48
         text: app.wastewaterCaption
-        color: "#96A3AF"
+        color: "#FFFFFF"
         font.family: "Inter"
-        font.pixelSize: 27
+        font.pixelSize: 34
         horizontalAlignment: Text.AlignRight
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideLeft
@@ -229,9 +206,9 @@ Item {
 
         delegate: ParameterTile {
             x: 24 + (index % 4) * 472
-            y: index < 4 ? 232 : (index < 8 ? 482 : 796)
+            y: index < 4 ? 232 : (index < 8 ? 524 : 880)
             width: 456
-            height: 238
+            height: 280
             visible: index < 12
 
             symbol: model.symbol
@@ -244,93 +221,4 @@ Item {
         }
     }
 
-    // ---------------------------------------------------------------------
-    // Footer
-    // ---------------------------------------------------------------------
-    Rectangle {
-        x: 24
-        y: 1050
-        width: 1872
-        height: 126
-        color: "#080D12"
-        radius: 6
-        border.width: 1
-        border.color: "#26323D"
-
-        Text {
-            x: 24
-            y: 14
-            text: "CHÚ GIẢI TRẠNG THÁI"
-            color: "#7D8B98"
-            font.family: "Inter"
-            font.pixelSize: 20
-            font.bold: true
-            renderType: Text.NativeRendering
-        }
-
-        Row {
-            x: 24
-            y: 52
-            spacing: 30
-
-            Repeater {
-                model: [
-                    { label: "ĐANG ĐO", color: "#00E5FF" },
-                    { label: "TRONG GIỚI HẠN", color: "#00E5FF" },
-                    { label: "VƯỢT NGƯỠNG", color: "#FF5252" },
-                    { label: "HIỆU CHUẨN", color: "#FFD60A" },
-                    { label: "LỖI / KHÔNG HỢP LỆ", color: "#D0D0D0" }
-                ]
-
-                Row {
-                    spacing: 10
-                    Rectangle {
-                        width: 18
-                        height: 18
-                        radius: 3
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: modelData.color
-                    }
-                    Text {
-                        text: modelData.label
-                        color: "#D6DEE5"
-                        font.family: "Inter"
-                        font.pixelSize: 22
-                        renderType: Text.NativeRendering
-                    }
-                }
-            }
-        }
-
-        Column {
-            x: 1060
-            y: 16
-            width: 785
-            spacing: 6
-
-            Text {
-                width: parent.width
-                text: root.brand.regulationText || ""
-                color: "#D6DEE5"
-                font.family: "Inter"
-                font.pixelSize: 21
-                horizontalAlignment: Text.AlignRight
-                elide: Text.ElideRight
-                visible: text.length > 0
-                renderType: Text.NativeRendering
-            }
-
-            Text {
-                width: parent.width
-                text: root.brand.footerNote || ""
-                color: "#8E9CA9"
-                font.family: "Inter"
-                font.pixelSize: 19
-                horizontalAlignment: Text.AlignRight
-                elide: Text.ElideRight
-                visible: text.length > 0
-                renderType: Text.NativeRendering
-            }
-        }
-    }
 }

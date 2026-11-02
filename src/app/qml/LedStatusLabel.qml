@@ -12,7 +12,7 @@ Rectangle {
     implicitWidth: Math.min(label.implicitWidth + 30, maximumWidth)
     implicitHeight: 42
     radius: 4
-    color: backgroundFor(stateKey)
+    color: "#000000"
     border.width: 1
     border.color: foregroundFor(stateKey)
 
@@ -34,24 +34,7 @@ Rectangle {
         case "unknownStatus":
             return "#D0D0D0"
         default:
-            return "#9AA4AE"
-        }
-    }
-
-    function backgroundFor(key) {
-        switch (key) {
-        case "measuring":
-        case "withinLimit":
-            return "#062A33"
-        case "exceedsLimit":
-        case "deviceFault":
-        case "conflict":
-            return "#3A0808"
-        case "calibrating":
-        case "unitMismatch":
-            return "#332700"
-        default:
-            return "#1A1D21"
+            return "#FFFFFF"
         }
     }
 
