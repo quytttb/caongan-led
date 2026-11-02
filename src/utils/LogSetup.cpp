@@ -72,6 +72,8 @@ void enforceTotalSizeLocked(LogState &s)
     // Xóa file cũ nhất (cuối danh sách sắp theo thời gian giảm dần).
     for (int i = entries.size() - 1; i >= 0 && total > s.options.maxTotalBytes; --i) {
         const QFileInfo &info = entries.at(i);
+        if (info.absoluteFilePath() == QFileInfo(s.currentPath).absoluteFilePath())
+            continue;
         const qint64 size = info.size();
         if (QFile::remove(info.absoluteFilePath()))
             total -= size;
@@ -184,6 +186,16 @@ QString currentLogFilePath()
     LogState &s = state();
     QMutexLocker locker(&s.mutex);
     return s.currentPath;
+}
+
+void writeApplicationLog(LogLevel level, const QString &message)
+{
+    QtMsgType type = QtInfoMsg;
+    if (level == LogLevel::Warning)
+        type = QtWarningMsg;
+    else if (level == LogLevel::Error)
+        type = QtCriticalMsg;
+    messageHandler(type, QMessageLogContext(), message);
 }
 
 } // namespace caongan

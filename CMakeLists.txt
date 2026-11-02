@@ -91,6 +91,7 @@ add_library(caongan_ingestion STATIC
 )
 target_link_libraries(caongan_ingestion PUBLIC
     caongan_storage
+    caongan_utils
     Qt6::Core
 )
 
@@ -132,6 +133,7 @@ qt_add_qml_module(caongan_led
         src/app/qml/ChannelSettingsPage.qml
         src/app/qml/DisplaySettingsPage.qml
         src/app/qml/DiagnosticsPage.qml
+        src/app/qml/LogPage.qml
         src/app/qml/ActionDialog.qml
         src/app/qml/InlineNotice.qml
 )

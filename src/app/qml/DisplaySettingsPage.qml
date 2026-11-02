@@ -141,7 +141,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             text: app.previewMode
-                                  ? "Đang chạy --preview: cửa sổ LED luôn mở để kiểm tra, không tự chiếm output thật."
+                                  ? "Cửa sổ LED đang hiển thị trên màn hình hiện tại."
                                   : (app.targetScreenName.length > 0
                                      ? ("Đang chọn: " + app.targetScreenName)
                                      : "Chưa chọn output — cửa sổ LED công khai đang ẩn.")
@@ -364,36 +364,18 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             Text {
-                                text: "Mô phỏng để kiểm tra màn LED"
+                                text: "Kịch bản hiển thị"
                                 color: AppColors.primaryText
                                 font.family: "Inter"
                                 font.pixelSize: 19
                                 font.bold: true
                             }
                             Item { Layout.fillWidth: true }
-                            Rectangle {
-                                visible: app.simulationActive
-                                Layout.preferredWidth: simulationBadge.implicitWidth + 20
-                                Layout.preferredHeight: 28
-                                radius: 14
-                                color: AppColors.withAlpha(AppColors.warning, 0.18)
-                                border.width: 1
-                                border.color: AppColors.warning
-                                Text {
-                                    id: simulationBadge
-                                    anchors.centerIn: parent
-                                    text: "ĐANG MÔ PHỎNG"
-                                    color: AppColors.warning
-                                    font.family: "Inter"
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                }
-                            }
                         }
 
                         Text {
                             Layout.fillWidth: true
-                                text: "Dữ liệu và ngưỡng demo chỉ tồn tại trong bộ nhớ khi mô phỏng; không ghi vào cấu hình vận hành. Màn LED không có nhãn mô phỏng."
+                            text: "Chọn kịch bản hiển thị. Nguồn dữ liệu tạm dừng khi chạy kịch bản; cấu hình vận hành không thay đổi."
                             color: AppColors.textMuted
                             font.family: "Inter"
                             font.pixelSize: 13
@@ -408,31 +390,31 @@ Item {
                                 model: app.simulationScenarios
                             }
                             Button {
-                                text: app.simulationActive ? "Áp dụng cảnh" : "Bắt đầu mô phỏng"
+                                text: app.simulationActive ? "Áp dụng cảnh" : "Bắt đầu kịch bản"
                                 highlighted: true
                                 onClicked: {
                                     const scenario = simulationCombo.currentText
                                     dialog.ask(
-                                        "Bật dữ liệu mô phỏng",
+                                        "Bắt đầu kịch bản",
                                         "Cảnh: " + scenario +
-                                        "\n\nDữ liệu thật sẽ tạm dừng nhập trong lúc mô phỏng. Màn LED không có nhãn mô phỏng. Không dùng khi đang vận hành thật.",
+                                        "\n\nNguồn dữ liệu thật sẽ tạm dừng cho đến khi kết thúc kịch bản.",
                                         function() {
                                             if (app.simulationActive)
                                                 app.applySimulationScenario(scenario)
                                             else
                                                 app.setSimulation(true, scenario)
                                             page.statusIsError = false
-                                            page.statusText = "Đang mô phỏng cảnh " + scenario + "."
+                                            page.statusText = "Đã áp dụng kịch bản " + scenario + "."
                                         })
                                 }
                             }
                             Button {
                                 visible: app.simulationActive
-                                text: "Dừng mô phỏng"
+                                text: "Dừng kịch bản"
                                 onClicked: {
                                     app.setSimulation(false, "")
                                     page.statusIsError = false
-                                    page.statusText = "Đã dừng mô phỏng; đang chờ dữ liệu thật."
+                                    page.statusText = "Đã dừng kịch bản; đang chờ dữ liệu từ nguồn."
                                 }
                             }
                         }

@@ -11,7 +11,8 @@ Ghi phiên bản/hash package, ngày giờ, người thử/duyệt, máy/Windows
 
 ## Gói và dữ liệu
 
-- [x] Windows Release build + CTest và smoke package trên GitHub-hosted runner ([run 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271)).
+- [x] Windows Release build + CTest và package trên GitHub-hosted runner cho commit cũ ([run 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271)); smoke cũ không kiểm tra cửa sổ visible.
+- [ ] Build bản sửa và xác nhận cả hai cửa sổ visible bằng smoke mới trên Windows.
 - [ ] Kiểm tra package/Qt license/MSVC và chạy trên máy sạch, đúng tài khoản; qwindows/SQLite/QML hoạt động và CWD khác không làm đổi dữ liệu.
 - [ ] 12 kênh đúng vị trí, đối chiếu từng giá trị, đơn vị, timestamp và status với nguồn được phép. 0 thật hợp lệ; thiếu pH không thành 0; ngưỡng mặc định tắt; so trước làm tròn.
 - [ ] Thử hiệu chuẩn, lỗi, unknown, stale, sai unit, conflict, future, gửi bù, file thiếu/sai cấu trúc, upload dở/locked/reconnect; không có lỗi nào trông như bình thường trong giới hạn. Nguồn không đổi tên/nội dung/mtime do app.

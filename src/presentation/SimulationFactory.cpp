@@ -75,6 +75,7 @@ QStringList simulationScenarioNames()
         QStringLiteral("Trong giới hạn"),
         QStringLiteral("Hiệu chuẩn"),
         QStringLiteral("Lỗi thiết bị"),
+        QStringLiteral("Bảo trì"),
         QStringLiteral("Dữ liệu cũ"),
         QStringLiteral("Thiếu pH"),
         QStringLiteral("Sai đơn vị"),
@@ -141,6 +142,10 @@ QVector<ChannelState> buildSimulationStates(const AppConfig &config,
         if (scenario == QStringLiteral("Lỗi thiết bị")
             && (channel.id == QLatin1String("so2") || channel.id == QLatin1String("cod"))) {
             status = DeviceStatus::DeviceFault;
+        }
+        if (scenario == QStringLiteral("Bảo trì")
+            && (channel.id == QLatin1String("so2") || channel.id == QLatin1String("cod"))) {
+            status = DeviceStatus::Maintenance;
         }
         if (scenario == QStringLiteral("Sai đơn vị") && channel.id == QLatin1String("pm"))
             unitOverride = QStringLiteral("mg/m3");

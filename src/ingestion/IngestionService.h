@@ -87,6 +87,7 @@ private:
     QVector<DiagnosticEntry> m_pendingDiagnostics;
     QHash<QString, QDateTime> m_diagnosticRateLimit;
     QHash<QString, QString> m_lastSignatures;
+    QHash<QString, QString> m_loggedStates;
     QDateTime m_lastPruneUtc;
     bool m_started = false;
     bool m_paused = false;

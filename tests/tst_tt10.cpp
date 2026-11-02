@@ -53,6 +53,7 @@ private slots:
     void readsSampleFixture();
     void fourFieldsDoesNotMeanMeasuring();
     void unknownStatusIsNotMeasuring();
+    void maintenanceStatusIsExtension();
     void placeholderIsMissingNotZero();
     void invalidNumberKeepsRecordInvalid();
     void zeroIsValid();
@@ -206,6 +207,19 @@ void TestTt10::unknownStatusIsNotMeasuring()
     QCOMPARE(record.issueCode, QStringLiteral("unknown_status"));
     QCOMPARE(record.value.value_or(-1.0), 12.3);
     QCOMPARE(deviceStatusToCode(record.deviceStatus), QStringLiteral("--"));
+}
+
+void TestTt10::maintenanceStatusIsExtension()
+{
+    const QByteArray content = QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t04\n");
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    QVERIFY(result.accepted);
+    QCOMPARE(result.records.size(), 1);
+    QCOMPARE(result.records.constFirst().deviceStatus, DeviceStatus::Maintenance);
+    QCOMPARE(deviceStatusToCode(DeviceStatus::Maintenance), QStringLiteral("04"));
+    QCOMPARE(deviceStatusFromCode(QStringLiteral("04")), DeviceStatus::Maintenance);
+    QCOMPARE(deviceStatusFromCode(QStringLiteral("03")), DeviceStatus::Unknown);
+    QVERIFY(result.issues.isEmpty());
 }
 
 void TestTt10::placeholderIsMissingNotZero()

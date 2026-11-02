@@ -88,6 +88,10 @@ void TestSnapshot::roundTrip()
                                   QStringLiteral("NUONT1"), QStringLiteral("-"),
                                   std::nullopt, measured.addSecs(60));
     readings.append(missing);
+    Reading maintenance = makeReading(QStringLiteral("cod"), QStringLiteral("nuoc-thai"),
+                                      QStringLiteral("NUONT1"), QStringLiteral("mg/L"), 20.0, measured);
+    maintenance.deviceStatus = DeviceStatus::Maintenance;
+    readings.append(maintenance);
 
     CheckpointRecord checkpoint;
     checkpoint.fileKey = QStringLiteral("khi-thai|C:/nguon|file.txt");
@@ -104,7 +108,7 @@ void TestSnapshot::roundTrip()
 
     QVector<Reading> loaded;
     QVERIFY2(store.loadReadings(&loaded, &error), qPrintable(error));
-    QCOMPARE(loaded.size(), 2);
+    QCOMPARE(loaded.size(), 3);
 
     const Reading *co = findReading(loaded, QStringLiteral("co"));
     QVERIFY(co);
@@ -123,6 +127,9 @@ void TestSnapshot::roundTrip()
     QVERIFY(ph);
     QVERIFY(!ph->value.has_value());
     QCOMPARE(ph->validity, Validity::Missing);
+    const Reading *cod = findReading(loaded, QStringLiteral("cod"));
+    QVERIFY(cod);
+    QCOMPARE(cod->deviceStatus, DeviceStatus::Maintenance);
 }
 
 void TestSnapshot::upsertKeepsOneRowPerChannel()

@@ -4,8 +4,10 @@
 #include "domain/ParameterMapper.h"
 #include "domain/Tt10Parser.h"
 #include "domain/Tt10Time.h"
+#include "utils/LogSetup.h"
 
 #include <QCryptographicHash>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -22,6 +24,14 @@ constexpr int kMaxEntriesPerScan = 5000;
 constexpr int kStableMs = 1200;
 constexpr int kDiagnosticRepeatSeconds = 60;
 constexpr int kPruneIntervalSeconds = 3600;
+
+QString logText(QString text)
+{
+    text.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
+    text.replace(QLatin1Char('\r'), QStringLiteral("\\r"));
+    text.replace(QLatin1Char('\n'), QStringLiteral("\\n"));
+    return text;
+}
 
 QString sha256Hex(const QByteArray &content)
 {
@@ -83,6 +93,8 @@ void IngestionService::start(const AppConfig &config, const QString &snapshotPat
     m_store.setConfig(m_config);
     m_snapshotPath = snapshotPath;
     m_snapshotStore = std::make_unique<SnapshotStore>(snapshotPath);
+    qInfo() << "[ingestion] Khởi động, snapshot" << snapshotPath
+            << "nguồn" << m_config.sources.size() << "kênh" << m_config.channels.size();
 
     const QDateTime now = tt10::nowUtc();
     QString dbError;
@@ -158,6 +170,7 @@ void IngestionService::setPaused(bool paused)
     if (m_paused == paused)
         return;
     m_paused = paused;
+    qInfo() << "[ingestion]" << (paused ? "Tạm dừng nhập nguồn" : "Tiếp tục nhập nguồn");
     if (!m_paused) {
         m_rescanRequested = true;
         // Sau mô phỏng, UI đã bị reset; buộc phát lại snapshot thật thay vì
@@ -177,6 +190,7 @@ void IngestionService::requestRescan()
 
 void IngestionService::shutdown()
 {
+    qInfo() << "[ingestion] Dừng dịch vụ";
     if (m_timer) {
         m_timer->stop();
         m_timer->deleteLater();
@@ -488,6 +502,9 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
         switch (outcome.code) {
         case ApplyOutcome::Code::Accepted:
             changed.append(reading);
+            qInfo() << "[reading] nguồn" << reading.sourceId << "kênh" << reading.channelId
+                    << "mốc" << reading.measuredAtText << "mã" << deviceStatusToCode(reading.deviceStatus)
+                    << "giá trị" << reading.rawValue.left(128) << "đơn vị" << reading.unit.left(64);
             break;
         case ApplyOutcome::Code::ConflictRecorded: {
             Reading stored;
@@ -573,6 +590,11 @@ void IngestionService::setSourceStatus(SourceRuntime &runtime, bool available, c
     runtime.statusInitialised = true;
     runtime.available = available;
     runtime.lastMessage = message;
+    writeApplicationLog(available ? LogLevel::Info : LogLevel::Warning,
+                        QStringLiteral("[source] %1 %2: %3")
+                            .arg(logText(runtime.config.id),
+                                 available ? QStringLiteral("sẵn sàng") : QStringLiteral("không sẵn sàng"),
+                                 logText(message)));
     emit sourceStatusChanged(runtime.config.id, available, message);
 }
 
@@ -593,6 +615,11 @@ void IngestionService::addDiagnostic(const QString &severity,
         for (int i = 0; i < keys.size() / 2; ++i)
             m_diagnosticRateLimit.remove(keys.at(i));
     }
+
+    const LogLevel level = severity == QLatin1String("error") ? LogLevel::Error
+        : (severity == QLatin1String("warning") ? LogLevel::Warning : LogLevel::Info);
+    writeApplicationLog(level, QStringLiteral("[diagnostic] source=%1 channel=%2 code=%3 %4")
+                                  .arg(logText(sourceId), logText(channelId), logText(code), logText(message)));
 
     DiagnosticEntry entry;
     entry.atUtc = nowUtc;
@@ -620,6 +647,11 @@ void IngestionService::emitStates(const QDateTime &nowUtc, bool force)
     const QVector<ChannelState> states = m_store.evaluate(nowUtc);
     bool changed = force || m_firstEmit;
     for (const ChannelState &state : states) {
+        const QString previousState = m_loggedStates.value(state.config.id);
+        if (previousState != state.stateKey) {
+            qInfo() << "[state]" << state.config.id << previousState << "->" << state.stateKey;
+            m_loggedStates.insert(state.config.id, state.stateKey);
+        }
         const QString signature = state.stateKey + QLatin1Char('|') + state.valueText
                                   + QLatin1Char('|') + state.statusText
                                   + QLatin1Char('|') + state.detailText

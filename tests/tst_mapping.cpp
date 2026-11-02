@@ -51,6 +51,7 @@ private slots:
     void mapsByExplicitAliasOnly();
     void unitAliasesAndMismatch();
     void missingValueStillMaps();
+    void maintenanceStatusMaps();
     void waterSourceExcludesNh4N();
     void noFuzzyMatchBetweenNitrogenSpecies();
     void unmappedSymbolsReportedOnce();
@@ -137,6 +138,20 @@ void TestMapping::missingValueStillMaps()
     QCOMPARE(o2->validity, Validity::Missing);
     QVERIFY(!o2->value.has_value());
     QVERIFY(hasDiagnostic(mapped.diagnostics, QStringLiteral("missing_value")));
+}
+
+void TestMapping::maintenanceStatusMaps()
+{
+    const SourceConfig source = sourceFor(QStringLiteral("khi-thai"), QStringLiteral("Khí thải"),
+                                          QStringLiteral("KHITO1"));
+    const ParseResult parsed = parseTt10Content(
+        fileNameFor(QStringLiteral("KHITO1")),
+        QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t04\n"), source, {});
+    QVERIFY(parsed.accepted);
+    const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
+                                                  QStringLiteral("/tmp/a.txt"), QStringLiteral("hash"), {});
+    QCOMPARE(mapped.readings.size(), 1);
+    QCOMPARE(mapped.readings.constFirst().deviceStatus, DeviceStatus::Maintenance);
 }
 
 void TestMapping::waterSourceExcludesNh4N()

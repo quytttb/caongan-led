@@ -264,6 +264,9 @@ ParseResult parseTt10Content(const QString &fileName,
                 record.deviceStatus = DeviceStatus::Calibrating;
             } else if (record.statusText == QLatin1String("02")) {
                 record.deviceStatus = DeviceStatus::DeviceFault;
+            } else if (record.statusText == QLatin1String("04")) {
+                // Mã mở rộng theo hợp đồng nguồn, không thuộc Bảng 35 TT10.
+                record.deviceStatus = DeviceStatus::Maintenance;
             } else {
                 record.deviceStatus = DeviceStatus::Unknown;
                 record.issueCode = QStringLiteral("unknown_status");

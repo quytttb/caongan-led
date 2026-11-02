@@ -5,7 +5,7 @@ import CaonganLed.App
 Window {
     id: win
     objectName: "ledWindow"
-    title: "Cao Ngạn LED"
+    title: app.branding.companyName || "Cao Ngạn"
     color: "black"
     flags: app.ledFullScreen ? (Qt.FramelessWindowHint | Qt.Window) : Qt.Window
     visibility: app.ledWindowVisible && targetReady

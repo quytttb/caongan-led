@@ -3,23 +3,21 @@ import QtQuick.Window
 import LoggerKit.Theme
 import CaonganLed.App
 
-// Root không hiển thị: hai cửa sổ độc lập (LED công khai + vận hành).
-Item {
+// QtObject không có trạng thái visible/parent Item để vô tình ẩn hai cửa sổ
+// top-level. Hai property giữ ownership suốt vòng đời QML engine.
+QtObject {
     id: root
-    width: 0
-    height: 0
-    visible: false
 
     Component.onCompleted: {
         ThemeMode.mode = "dark"
         ThemeMode.touch = false
     }
 
-    LedWindow {
+    property LedWindow ledWindow: LedWindow {
         id: ledWindow
     }
 
-    OperatorWindow {
+    property OperatorWindow operatorWindow: OperatorWindow {
         id: operatorWindow
         visible: true
     }

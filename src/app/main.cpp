@@ -19,6 +19,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QStringList>
+#include <QTimer>
 
 #include <cstdio>
 
@@ -96,11 +97,20 @@ int main(int argc, char *argv[])
         QStringList{QStringLiteral("scenario")},
         QStringLiteral("Tên cảnh mô phỏng dùng với --simulate."),
         QStringLiteral("name"));
+    QCommandLineOption verifyWindowsOption(
+        QStringList{QStringLiteral("verify-preview-windows")},
+        QStringLiteral("Kiểm tra hai cửa sổ preview thực sự hiển thị, rồi thoát (dành cho test)."));
     parser.addOption(configOption);
     parser.addOption(previewOption);
     parser.addOption(simulateOption);
     parser.addOption(scenarioOption);
+    parser.addOption(verifyWindowsOption);
     parser.process(app);
+
+    if (parser.isSet(verifyWindowsOption) && !parser.isSet(previewOption)) {
+        std::fprintf(stderr, "--verify-preview-windows yêu cầu --preview.\n");
+        return 2;
+    }
 
     caongan::AppPaths::ensureDirectories();
     caongan::setupLogging(caongan::AppPaths::logDir());
@@ -151,6 +161,27 @@ int main(int argc, char *argv[])
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "Không nạp được QML module CaonganLed.App/Main";
         return 1;
+    }
+
+    if (parser.isSet(verifyWindowsOption)) {
+        QTimer::singleShot(500, &app, []() {
+            bool ledVisible = false;
+            bool operatorVisible = false;
+            for (const QWindow *window : QGuiApplication::allWindows()) {
+                if (window->objectName() == QLatin1String("ledWindow"))
+                    ledVisible = window->isVisible();
+                else if (window->objectName() == QLatin1String("operatorWindow"))
+                    operatorVisible = window->isVisible();
+            }
+            if (!ledVisible || !operatorVisible) {
+                qCritical() << "Kiểm tra preview thất bại: LED hiển thị =" << ledVisible
+                            << ", vận hành hiển thị =" << operatorVisible;
+                QCoreApplication::exit(3);
+                return;
+            }
+            qInfo() << "PREVIEW_WINDOWS_OK";
+            QCoreApplication::exit(0);
+        });
     }
 
     qInfo() << "Sẵn sàng; config =" << controller.configPath();

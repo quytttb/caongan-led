@@ -6,12 +6,12 @@ Workflow tham khảo cách tổ chức của `quytttb/data-logger`, điều ch�
 
 `.github/workflows/ci.yml` chạy khi push `main`/`master`, pull request hoặc được gọi thủ công:
 
-- **Linux**: cài Qt, build Release/Ninja, chạy CTest, `qmllint` với `-W 0` nhưng tạm tắt toàn bộ nhóm `unqualified`, rồi chạy thử QML offscreen có `QT_FATAL_WARNINGS=1`.
-- **Windows 2022 x64**: cài Qt/MSVC, chạy `packaging/windows/build.ps1` (build Release và CTest), deploy bằng `windeployqt`, kiểm tra plugin Windows/SQLite, tạo ZIP + SHA-256, khởi động package ở thư mục làm việc khác với Qt build bị loại khỏi PATH và kiểm tra SQLite. Artifact `caongan-led-windows-<commit>` giữ 7 ngày. Qt SQLite driver là bắt buộc, không được bỏ qua test khi plugin thiếu.
+- **Linux**: cài Qt, build Release/Ninja, chạy CTest (bao gồm simulator và đường file → app), `qmllint` với `-W 0` nhưng tạm tắt toàn bộ nhóm `unqualified`, rồi chạy thử QML offscreen có `QT_FATAL_WARNINGS=1`.
+- **Windows 2022 x64**: cài Qt/MSVC, chạy `packaging/windows/build.ps1` (build Release và CTest), deploy bằng `windeployqt`, kiểm tra plugin Windows/SQLite, tạo ZIP + SHA-256, khởi động package ở thư mục làm việc khác với Qt build bị loại khỏi PATH và kiểm tra SQLite cùng trạng thái visible của hai cửa sổ. Artifact `caongan-led-windows-<commit>` giữ 7 ngày. Qt SQLite driver là bắt buộc, không được bỏ qua test khi plugin thiếu.
 
 Không đặt secret, dữ liệu nguồn hay cấu hình vận hành trong Git hoặc artifact. Các file TT10 trong gói là mẫu giả. `qmllint` chưa kiểm tra nhóm `unqualified`; CI chạy xanh không chứng minh màn thật đọc rõ, không thay thế máy Windows sạch, thiết bị nguồn hoặc thử 72 giờ.
 
-Lần chạy tham chiếu ngày 02/11/2026: [CI 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271), commit `38c8ae7`; Linux và Windows đều đạt, có artifact Windows thử nghiệm. Artifact CI có thời hạn, không phải bản phát hành chính thức.
+Lần chạy tham chiếu ngày 02/11/2026: [CI 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271), commit `38c8ae7`; Linux và Windows đều build/test/deploy, nhưng smoke cũ không phát hiện lỗi cửa sổ bị ẩn. Test cửa sổ và smoke mới được bổ sung sau lần chạy này, chưa xác minh Windows. Artifact cũ có thời hạn, không phải bản phát hành chính thức và không dùng để kiểm tra giao diện.
 
 ## Bản nháp theo tag
 

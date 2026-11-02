@@ -44,6 +44,7 @@ private slots:
     void batchesEventuallyReachEveryFile();
     void rejectedNameDoesNotPoisonValidCopy();
     void conflictSurvivesRestart();
+    void maintenanceSurvivesRestart();
 };
 
 void TestIngestion::batchesEventuallyReachEveryFile()
@@ -177,6 +178,54 @@ void TestIngestion::conflictSurvivesRestart()
     }
     QVERIFY(checked);
     resumed.shutdown();
+}
+
+void TestIngestion::maintenanceSurvivesRestart()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    QVERIFY(QDir().mkpath(temp.filePath("input")));
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    const QString timestamp = tt10::formatTimestamp(now.addSecs(-30));
+    const QString fileName = QStringLiteral("TNg_NDCN_KHITO1_%1.txt").arg(timestamp);
+    const QByteArray input = QStringLiteral("CO\t5\tmg/Nm3\t%1\t04\n").arg(timestamp).toUtf8();
+    QVERIFY(writeInput(temp.filePath("input/" + fileName), input, now));
+
+    AppConfig config = defaultAppConfig();
+    config.sources[0].folder = temp.filePath("input");
+    ChannelConfig *co = config.channelById(QStringLiteral("co"));
+    QVERIFY(co);
+    co->threshold.enabled = true;
+    co->threshold.hasHigh = true;
+    co->threshold.high = 100;
+    const QString db = temp.filePath("snapshot.db");
+
+    IngestionService service;
+    service.start(config, db);
+    QTest::qWait(1300);
+    scanNow(service);
+    service.shutdown();
+
+    IngestionService resumed;
+    QSignalSpy statesSpy(&resumed, &IngestionService::channelsChanged);
+    resumed.start(config, db);
+    QVERIFY(!statesSpy.isEmpty());
+    const auto states = qvariant_cast<QVector<ChannelState>>(statesSpy.constFirst().at(0));
+    bool checked = false;
+    for (const ChannelState &state : states) {
+        if (state.config.id == QLatin1String("co")) {
+            QVERIFY(state.hasReading);
+            QCOMPARE(state.reading.deviceStatus, DeviceStatus::Maintenance);
+            QCOMPARE(state.statusText, QStringLiteral("BẢO TRÌ"));
+            QCOMPARE(state.threshold, ThresholdResult::NotEvaluated);
+            checked = true;
+        }
+    }
+    QVERIFY(checked);
+    resumed.shutdown();
+    QFile original(temp.filePath("input/" + fileName));
+    QVERIFY(original.open(QIODevice::ReadOnly));
+    QCOMPARE(original.readAll(), input);
 }
 
 QTEST_GUILESS_MAIN(TestIngestion)

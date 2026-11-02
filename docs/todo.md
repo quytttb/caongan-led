@@ -14,7 +14,8 @@
 
 ## Chưa xác minh tại nơi triển khai
 
-- [x] Build Release, CTest, package và smoke Windows/Visual C++ x64 trên GitHub-hosted runner ([run 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271)); đây không phải máy sạch/PC đích.
+- [x] Build Release, CTest và package Windows/Visual C++ x64 trên GitHub-hosted runner cho commit cũ ([run 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271)). Smoke cũ chỉ xác nhận khởi động, không phát hiện lỗi cửa sổ bị ẩn.
+- [ ] Build lại bản đã sửa, chạy CTest và smoke mới xác nhận hai cửa sổ trên Windows; không dùng artifact cũ để kiểm tra giao diện.
 - [ ] Chạy package trên máy sạch không có Qt/dev tools và PC đích, kiểm tra QML, qwindows, SQLite, redistributable, shortcut có CWD khác và quyền tài khoản. Mẫu XML scheduler chưa được thử/cài trên Windows.
 - [ ] LED thật: mode 1920×1200 qua HDMI/quang/EDID, physical 1280×960 mm/tỷ lệ, không cắt hoặc méo; Extend/Duplicate, 100/125/150% DPI, hotplug, sleep/wake, reboot và crash. Hai tỷ lệ 16:10 và 4:3 cần đo, không tự bù.
 - [ ] Thu và duyệt file khí/nước thật, thư mục nhận/quyền/cơ chế hoàn tất, nhịp, mã trạm, timestamp, correction, pH, PM, NH₄⁺/NH₄-N, NOx, trạng thái bridge, ngưỡng và nội dung quy chuẩn. Đối chiếu với nguồn được phép; không tranh inbox với app cũ.

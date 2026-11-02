@@ -1,6 +1,6 @@
 # Windows: build, đóng gói và triển khai thử
 
-**Tình trạng: thử nghiệm.** Build, deploy và smoke đã chạy thành công trên Windows 2022 GitHub-hosted runner; chưa kiểm tra trên Windows sạch hay PC/LED đích. Không cài tự động, không ghi registry/service, không cấu hình autologon hoặc sửa hệ thống CEMS. Chỉ tiếp tục sau khi kỹ thuật và nhà máy phê duyệt.
+**Tình trạng: thử nghiệm.** Bản trước đã build/deploy trên Windows 2022 GitHub-hosted runner, nhưng smoke cũ không kiểm tra cửa sổ có thực sự hiện. Bản sửa cửa sổ và smoke mới chưa được chạy trên Windows; chưa kiểm tra trên Windows sạch hay PC/LED đích. Không cài tự động, không ghi registry/service, không cấu hình autologon hoặc sửa hệ thống CEMS. Chỉ tiếp tục sau khi kỹ thuật và nhà máy phê duyệt.
 
 ## Build
 
@@ -15,7 +15,7 @@ Build script xác minh phiên bản Qt, revision và working tree kit nếu có 
 
 Script không chứng minh đủ mọi QML import/DLL hay quyền phân phối. Rà soát `THIRD_PARTY_NOTICES.md`, license Qt thực tế và MSVC Redistributable chính thức; chỉ cài redistributable khi được duyệt. Trên Windows sạch không cài Qt/dev tools, xác minh checksum ZIP, giải nén vào thư mục version có quyền đọc, thử với tài khoản vận hành và CWD khác, kiểm tra log/SQLite/QML/plugin, test 1/2 màn và DPI. Không chạy giả lập trên LED công khai như dữ liệu thật.
 
-Sau deploy, có thể chạy `smoke.ps1 -PackageDir <thu-muc-package> -ScratchDir <thu-muc-moi>` trên Windows: script mở preview mô phỏng trong thời gian ngắn, kiểm tra app sẵn sàng và tạo SQLite, dùng PATH không chứa Qt build rồi dừng đúng process đã tạo. Thư mục scratch phải chưa tồn tại; script không xóa dữ liệu. CI dùng bước này nhưng nó không thay thế kiểm thử máy sạch, LED hay 72 giờ.
+Sau deploy, có thể chạy `smoke.ps1 -PackageDir <thu-muc-package> -ScratchDir <thu-muc-moi>` trên Windows: script yêu cầu app xác nhận hai cửa sổ preview có trạng thái visible rồi thoát, kiểm tra SQLite, dùng PATH không chứa Qt build. Thư mục scratch phải chưa tồn tại; script không xóa dữ liệu. CI dùng bước này nhưng nó không thay thế kiểm thử máy sạch, LED hay 72 giờ.
 
 ## Task Scheduler — chỉ cấu hình sau phê duyệt
 

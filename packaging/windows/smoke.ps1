@@ -32,28 +32,21 @@ try {
     $env:QT_QPA_PLATFORM = 'windows'
     $env:QT_FATAL_WARNINGS = '1'
     $env:CAONGAN_LED_BASE_DIR = Join-Path $ScratchDir 'app-data'
-    $Process = Start-Process -FilePath $Exe -ArgumentList @('--preview', '--simulate') `
+    $Process = Start-Process -FilePath $Exe -ArgumentList @('--preview', '--simulate', '--verify-preview-windows') `
         -WorkingDirectory $ScratchDir -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
 
-    $Ready = $false
-    for ($i = 0; $i -lt ($TimeoutSeconds * 2); $i++) {
-        Start-Sleep -Milliseconds 500
-        $Process.Refresh()
-        if ($Process.HasExited) { break }
-        if (Test-Path $Stderr) {
-            try {
-                if ((Get-Content $Stderr -Raw -Encoding utf8) -match 'config =') { $Ready = $true; break }
-            } catch { }
-        }
+    if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
+        throw "Het thoi gian cho kiem tra cua so; xem $Stderr"
     }
-    if (-not $Ready) { throw "App thoat som hoac chua san sang; xem $Stderr" }
-    Start-Sleep -Seconds 2
     $Process.Refresh()
-    if ($Process.HasExited) { throw "App thoat ngay sau khi san sang; xem $Stderr" }
+    if ($Process.ExitCode -ne 0) { throw "App khong qua kiem tra cua so (ma $($Process.ExitCode)); xem $Stderr" }
+    if (-not (Test-Path $Stderr) -or (Get-Content $Stderr -Raw -Encoding utf8) -notmatch 'PREVIEW_WINDOWS_OK') {
+        throw "Khong xac nhan duoc hai cua so preview; xem $Stderr"
+    }
     if (-not (Test-Path (Join-Path $env:CAONGAN_LED_BASE_DIR 'data/snapshot.db') -PathType Leaf)) {
         throw "Khong tao duoc SQLite snapshot; xem $Stderr"
     }
-    Write-Host 'Smoke package thanh cong: QML window va SQLite da khoi dong.'
+    Write-Host 'Smoke package thanh cong: hai cua so preview hien thi va SQLite da khoi dong.'
 } finally {
     if ($Process) {
         $Process.Refresh()

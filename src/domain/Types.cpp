@@ -50,6 +50,8 @@ QString deviceStatusToCode(DeviceStatus status)
         return QStringLiteral("01");
     case DeviceStatus::DeviceFault:
         return QStringLiteral("02");
+    case DeviceStatus::Maintenance:
+        return QStringLiteral("04");
     case DeviceStatus::Unknown:
         break;
     }
@@ -64,6 +66,8 @@ DeviceStatus deviceStatusFromCode(const QString &code)
         return DeviceStatus::Calibrating;
     if (code == QLatin1String("02"))
         return DeviceStatus::DeviceFault;
+    if (code == QLatin1String("04"))
+        return DeviceStatus::Maintenance;
     return DeviceStatus::Unknown;
 }
 

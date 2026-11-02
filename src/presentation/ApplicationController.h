@@ -8,6 +8,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QHash>
+#include <QUrl>
 #include <QWindow>
 
 #include <memory>
@@ -46,6 +47,10 @@ class ApplicationController : public QObject
     Q_PROPERTY(QString logDir READ logDir CONSTANT)
     Q_PROPERTY(QString databasePath READ databasePath CONSTANT)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
+    Q_PROPERTY(QStringList logFiles READ logFiles NOTIFY logFilesChanged)
+    Q_PROPERTY(QString selectedLog READ selectedLog NOTIFY logViewChanged)
+    Q_PROPERTY(QString logContent READ logContent NOTIFY logViewChanged)
+    Q_PROPERTY(QString logViewNote READ logViewNote NOTIFY logViewChanged)
 
 public:
     ApplicationController(LedParameterModel *ledModel,
@@ -82,6 +87,10 @@ public:
     QString logDir() const;
     QString databasePath() const;
     QString appVersion() const;
+    QStringList logFiles() const { return m_logFiles; }
+    QString selectedLog() const { return m_selectedLog; }
+    QString logContent() const { return m_logContent; }
+    QString logViewNote() const { return m_logViewNote; }
 
     Q_INVOKABLE QString updateSource(const QString &id,
                                      const QString &folder,
@@ -114,6 +123,10 @@ public:
     Q_INVOKABLE void clearDiagnostics();
     Q_INVOKABLE void openLogFolder();
     Q_INVOKABLE void openDataFolder();
+    Q_INVOKABLE QString refreshLogFiles();
+    Q_INVOKABLE QString selectLog(const QString &fileName);
+    Q_INVOKABLE QString copyLog();
+    Q_INVOKABLE QString exportLog(const QUrl &destination);
     Q_INVOKABLE void quit();
 
 signals:
@@ -126,6 +139,8 @@ signals:
     void statesChanged();
     void statusSummaryChanged();
     void configErrorChanged();
+    void logFilesChanged();
+    void logViewChanged();
 
 private slots:
     void onChannelsChanged(const QVector<caongan::ChannelState> &states);
@@ -162,6 +177,10 @@ private:
     QString m_configError;
     QString m_screenWarning;
     QString m_simulationScenario;
+    QStringList m_logFiles;
+    QString m_selectedLog;
+    QString m_logContent;
+    QString m_logViewNote;
     bool m_previewMode = false;
     bool m_simulationActive = false;
     bool m_ledWindowVisible = false;

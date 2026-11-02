@@ -24,6 +24,7 @@ enum class DeviceStatus {
     Measuring,     // TT10 00
     Calibrating,   // TT10 01
     DeviceFault,   // TT10 02
+    Maintenance,   // 04: mã mở rộng của nguồn, không thuộc Bảng 35 TT10
     Unknown,       // thiếu, 03 hoặc mã lạ
 };
 
@@ -57,6 +58,7 @@ enum class DisplayState {
     ExceedsLimit,
     Calibrating,
     DeviceFault,
+    Maintenance,
     Stale,
     FutureTimestamp,
     Invalid,

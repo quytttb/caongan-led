@@ -51,6 +51,8 @@ Copy-Item (Join-Path $Root 'THIRD_PARTY_NOTICES.md') $Destination
 Copy-Item (Join-Path $Root 'docs') $Destination -Recurse
 Copy-Item (Join-Path $Root 'sample-data') $Destination -Recurse
 Copy-Item (Join-Path $Root 'packaging') $Destination -Recurse
+New-Item -ItemType Directory -Path (Join-Path $Destination 'tools') | Out-Null
+Copy-Item (Join-Path $Root 'tools/tt10_simulator.py') (Join-Path $Destination 'tools/tt10_simulator.py')
 New-Item -ItemType Directory -Path (Join-Path $Destination 'licenses') | Out-Null
 Copy-Item (Join-Path $Root 'shared/logger-ui-kit/LICENSE') (Join-Path $Destination 'licenses/logger-ui-kit-MIT.txt')
 Copy-Item (Join-Path $Root 'resources/fonts/Inter/OFL.txt') (Join-Path $Destination 'licenses/Inter-OFL.txt')

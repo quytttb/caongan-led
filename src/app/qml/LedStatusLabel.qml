@@ -26,6 +26,7 @@ Rectangle {
         case "conflict":
             return "#FF5252"
         case "calibrating":
+        case "maintenance":
         case "unitMismatch":
             return "#FFD60A"
         case "stale":

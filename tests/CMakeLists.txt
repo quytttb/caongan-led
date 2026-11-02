@@ -24,7 +24,28 @@ caongan_add_test(tst_mapping)
 caongan_add_test(tst_ingestion)
 caongan_add_test(tst_presentation)
 target_link_libraries(tst_presentation PRIVATE caongan_presentation Qt6::Gui)
+caongan_add_test(tst_log_ui)
+target_link_libraries(tst_log_ui PRIVATE caongan_presentation Qt6::Gui Qt6::Qml Qt6::Quick
+    LoggerKit::theme logger_ui_kit_themeplugin)
+target_compile_definitions(tst_log_ui PRIVATE
+    CAONGAN_QML_SOURCE_DIR="${PROJECT_SOURCE_DIR}/src/app/qml")
 set_tests_properties(tst_presentation PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-data"
+)
+
+add_test(NAME tst_qml_windows COMMAND $<TARGET_FILE:caongan_led>
+    --preview --simulate --verify-preview-windows)
+set_tests_properties(tst_qml_windows PROPERTIES
+    TIMEOUT 20
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/qml-window-test"
+)
+
+find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+add_test(NAME tst_simulator COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/test_tt10_simulator.py")
+add_test(NAME tst_simulator_integration COMMAND Python3::Interpreter
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_simulator_integration.py" $<TARGET_FILE:caongan_led>)
+set_tests_properties(tst_simulator tst_simulator_integration PROPERTIES
+    TIMEOUT 90
+    ENVIRONMENT "PYTHONIOENCODING=utf-8"
 )

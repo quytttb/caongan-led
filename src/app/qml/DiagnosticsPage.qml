@@ -19,6 +19,7 @@ Item {
         case "conflict":
             return AppColors.error
         case "calibrating":
+        case "maintenance":
         case "unitMismatch":
             return AppColors.warning
         case "stale":

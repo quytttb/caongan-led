@@ -89,6 +89,7 @@ private slots:
     void zeroIsValidReading();
     void newerInvalidReplacesOldGood();
     void deviceStatusOverridesThreshold();
+    void maintenanceAndFaultLabels();
     void freshnessBoundaries();
     void staleAndFutureDisplay();
     void unitMismatch();
@@ -261,6 +262,31 @@ void TestReadingStore::deviceStatusOverridesThreshold()
     QVERIFY(unknown);
     QCOMPARE(unknown->display, DisplayState::UnknownStatus);
     QCOMPARE(unknown->threshold, ThresholdResult::NotEvaluated);
+}
+
+void TestReadingStore::maintenanceAndFaultLabels()
+{
+    LatestReadingStore store;
+    store.setConfig(configWithCoThreshold(true, false, 0.0, true, 100.0));
+    const QDateTime now = utc(QStringLiteral("2026-01-01T05:10:00Z"));
+    QCOMPARE(store.apply(coReading(200.0, now.addSecs(-30), DeviceStatus::Maintenance), now).code,
+             ApplyOutcome::Code::Accepted);
+    QVector<ChannelState> states = store.evaluate(now);
+    const ChannelState *co = findState(states, QStringLiteral("co"));
+    QVERIFY(co);
+    QCOMPARE(co->display, DisplayState::Maintenance);
+    QCOMPARE(co->statusText, QStringLiteral("BẢO TRÌ"));
+    QCOMPARE(co->stateKey, QStringLiteral("maintenance"));
+    QCOMPARE(co->threshold, ThresholdResult::NotEvaluated);
+    QCOMPARE(co->valueText, QStringLiteral("—"));
+
+    QCOMPARE(store.apply(coReading(20.0, now.addSecs(-20), DeviceStatus::DeviceFault), now).code,
+             ApplyOutcome::Code::Accepted);
+    states = store.evaluate(now);
+    co = findState(states, QStringLiteral("co"));
+    QVERIFY(co);
+    QCOMPARE(co->statusText, QStringLiteral("LỖI"));
+    QCOMPARE(co->threshold, ThresholdResult::NotEvaluated);
 }
 
 void TestReadingStore::freshnessBoundaries()

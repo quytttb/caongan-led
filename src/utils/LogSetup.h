@@ -10,7 +10,12 @@ struct LogOptions {
     int retentionDays = 14;
 };
 
+// Cảnh báo vận hành là dữ liệu chẩn đoán, không phải Qt warning có thể
+// trở thành fatal khi người kiểm thử bật QT_FATAL_WARNINGS.
+enum class LogLevel { Info, Warning, Error };
+
 void setupLogging(const QString &logDir, const LogOptions &options = {});
 QString currentLogFilePath();
+void writeApplicationLog(LogLevel level, const QString &message);
 
 } // namespace caongan

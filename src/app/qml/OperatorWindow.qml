@@ -7,7 +7,7 @@ import LoggerKit.Theme
 ApplicationWindow {
     id: win
     objectName: "operatorWindow"
-    title: "Cao Ngạn LED — Vận hành"
+    title: (app.branding.companyName || "Cao Ngạn") + " — Vận hành"
     width: 1440
     height: 920
     minimumWidth: 1120
@@ -81,13 +81,17 @@ ApplicationWindow {
                 }
 
                 ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 120
                     spacing: 1
                     Text {
-                        text: "CAO NGẠN LED"
+                        Layout.fillWidth: true
+                        text: app.branding.companyName || "Cao Ngạn"
                         color: AppColors.primaryText
                         font.family: "Inter"
                         font.pixelSize: 19
                         font.bold: true
+                        elide: Text.ElideRight
                     }
                     Text {
                         text: "Bảng quan trắc khí thải và nước thải"
@@ -130,45 +134,6 @@ ApplicationWindow {
                         }
                     }
                 }
-
-                Rectangle {
-                    visible: app.previewMode
-                    Layout.preferredWidth: 90
-                    Layout.preferredHeight: 30
-                    radius: 15
-                    color: AppColors.withAlpha(AppColors.info, 0.12)
-                    border.width: 1
-                    border.color: AppColors.info
-                    Text {
-                        anchors.centerIn: parent
-                        text: "PREVIEW"
-                        color: AppColors.info
-                        font.family: "Inter"
-                        font.pixelSize: 11
-                        font.bold: true
-                    }
-                }
-
-                Rectangle {
-                    visible: app.simulationActive
-                    Layout.preferredWidth: simulationHeaderText.implicitWidth + 22
-                    Layout.preferredHeight: 30
-                    radius: 15
-                    color: AppColors.withAlpha(AppColors.warning, 0.14)
-                    border.width: 1
-                    border.color: AppColors.warning
-                    Text {
-                        id: simulationHeaderText
-                        anchors.centerIn: parent
-                        text: "MÔ PHỎNG • " + app.simulationScenario
-                        color: AppColors.warning
-                        font.family: "Inter"
-                        font.pixelSize: 11
-                        font.bold: true
-                    }
-                }
-
-                Item { Layout.fillWidth: true }
 
                 ColumnLayout {
                     spacing: 0
@@ -255,7 +220,8 @@ ApplicationWindow {
                             "Nguồn dữ liệu",
                             "Ngưỡng & hiển thị",
                             "Màn hình & thương hiệu",
-                            "Chẩn đoán"
+                            "Chẩn đoán",
+                            "Nhật ký"
                         ]
 
                         delegate: Button {
@@ -329,6 +295,7 @@ ApplicationWindow {
                 ChannelSettingsPage {}
                 DisplaySettingsPage {}
                 DiagnosticsPage {}
+                LogPage {}
             }
         }
 

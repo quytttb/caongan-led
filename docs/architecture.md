@@ -4,7 +4,7 @@
 
 - Chọn theo timestamp đo từng kênh; trùng cùng mốc/nội dung bỏ qua; khác nội dung cùng mốc đánh dấu conflict. Snapshot conflict giữ cờ khi restart; snapshot không khớp nguồn/trạm/root đang cấu hình không được nạp.
 - Trạng thái thiết bị, độ mới, hợp lệ, ngưỡng độc lập. Chỉ dùng ngưỡng đang cấu hình khi bản ghi đo hợp lệ, mới và đúng đơn vị. Dữ liệu lỗi/thiếu/hiệu chuẩn/cũ/sai đơn vị/conflict không hiển thị là bình thường trong giới hạn.
-- Ngưỡng trong cảnh mô phỏng là tạm thời; có nhãn **MÔ PHỎNG**, dừng xử lý nguồn khi bật. Chuyển về thật sẽ quét lại; kiểm tra trực quan trước sử dụng.
+- Ngưỡng trong cảnh mô phỏng là tạm thời; màn LED không có nhãn dữ liệu giả và nguồn tạm dừng xử lý khi bật. Cửa sổ vận hành báo nguồn đang tạm dừng; chuyển về thật sẽ quét lại. Chỉ dùng trên môi trường tách biệt.
 - Màn được chọn theo tên `QScreen`, không theo chỉ số; nếu không thấy hoặc có nhiều màn cùng tên, LED bị ẩn và cảnh báo. `--preview` không cần màn đích. Tên màn không đảm bảo ổn định hoặc tương ứng EDID qua mọi cấu hình Windows.
 - Bảo vệ file đang ghi bằng 2 quan sát metadata, đọc lại metadata sau đọc; điều này không chứng minh producer đã hoàn tất nếu producer tạm dừng. Phải xác nhận cơ chế rename hoàn tất của producer.
 

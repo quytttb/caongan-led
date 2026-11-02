@@ -15,6 +15,7 @@ QString displayStateKey(DisplayState state)
     case DisplayState::ExceedsLimit:    return QStringLiteral("exceedsLimit");
     case DisplayState::Calibrating:     return QStringLiteral("calibrating");
     case DisplayState::DeviceFault:     return QStringLiteral("deviceFault");
+    case DisplayState::Maintenance:     return QStringLiteral("maintenance");
     case DisplayState::Stale:           return QStringLiteral("stale");
     case DisplayState::FutureTimestamp: return QStringLiteral("futureTimestamp");
     case DisplayState::Invalid:         return QStringLiteral("invalid");
@@ -33,7 +34,8 @@ QString displayStateText(DisplayState state)
     case DisplayState::WithinLimit:     return QStringLiteral("TRONG GIỚI HẠN");
     case DisplayState::ExceedsLimit:    return QStringLiteral("VƯỢT NGƯỠNG");
     case DisplayState::Calibrating:     return QStringLiteral("HIỆU CHUẨN");
-    case DisplayState::DeviceFault:     return QStringLiteral("BÁO LỖI THIẾT BỊ");
+    case DisplayState::DeviceFault:     return QStringLiteral("LỖI");
+    case DisplayState::Maintenance:     return QStringLiteral("BẢO TRÌ");
     case DisplayState::Stale:           return QStringLiteral("DỮ LIỆU CŨ");
     case DisplayState::FutureTimestamp: return QStringLiteral("THỜI GIAN KHÔNG HỢP LỆ");
     case DisplayState::Invalid:         return QStringLiteral("DỮ LIỆU KHÔNG HỢP LỆ");
@@ -55,6 +57,7 @@ QString displayStateSeverity(DisplayState state)
     case DisplayState::Conflict:
         return QStringLiteral("alarm");
     case DisplayState::Calibrating:
+    case DisplayState::Maintenance:
     case DisplayState::UnitMismatch:
         return QStringLiteral("warning");
     case DisplayState::Stale:
@@ -177,6 +180,11 @@ ChannelEvaluation evaluateDisplay(const ChannelConfig &config,
     if (reading->deviceStatus == DeviceStatus::Calibrating) {
         apply(DisplayState::Calibrating);
         result.detailText = QStringLiteral("Thiết bị đang hiệu chuẩn tại mốc %1").arg(measured);
+        return result;
+    }
+    if (reading->deviceStatus == DeviceStatus::Maintenance) {
+        apply(DisplayState::Maintenance);
+        result.detailText = QStringLiteral("Nguồn báo bảo trì tại mốc %1 (mã mở rộng 04)").arg(measured);
         return result;
     }
     if (reading->deviceStatus == DeviceStatus::Unknown) {
