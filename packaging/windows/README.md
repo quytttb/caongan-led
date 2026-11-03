@@ -29,7 +29,7 @@ Sau khi deploy ZIP, có thể tạo MSI bằng **WiX Toolset 3.14** (`heat.exe`,
   -Version '1.0.0'
 ```
 
-Script harvest toàn bộ thư mục package, tạo MSI **per-machine** vào `Program Files\Cao Ngạn LED`, shortcut Start Menu và MajorUpgrade theo `UpgradeCode` cố định trong `CaoNganLed.wxs`. MSI chặn cài nếu thiếu Microsoft Visual C++ 2015-2022 **x64** runtime nhưng **không** cài redistributable. Gỡ bằng **Apps & features**; dữ liệu trong `%LOCALAPPDATA%` hoặc `CAONGAN_LED_BASE_DIR` không bị xóa. MSI chưa được ký.
+Script harvest toàn bộ thư mục package, tạo MSI **per-machine** vào `Program Files\Cao Ngan LED`, shortcut Start Menu và MajorUpgrade theo `UpgradeCode` cố định trong `CaoNganLed.wxs`. Tên trong metadata MSI dùng ASCII vì Windows Installer dùng code page 1252; giao diện ứng dụng vẫn hiển thị “Cao Ngạn LED”. MSI chặn cài nếu thiếu Microsoft Visual C++ 2015-2022 **x64** runtime nhưng **không** cài redistributable. Gỡ bằng **Apps & features**; dữ liệu trong `%LOCALAPPDATA%` hoặc `CAONGAN_LED_BASE_DIR` không bị xóa. MSI chưa được ký.
 
 Chỉ chạy `smoke-msi.ps1` trên GitHub Actions runner cô lập: script cài và gỡ MSI thật, và từ chối chạy ngoài `GITHUB_ACTIONS=true` để tránh cài nhầm máy cá nhân. CI gọi:
 

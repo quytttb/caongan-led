@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="Cao Ngạn LED" Language="1033" Version="$(var.Version)"
-           Manufacturer="Cao Ngạn LED" UpgradeCode="6F3FA4E8-02C5-5648-A6EE-24A3CFEDEB8F">
+  <Product Id="*" Name="Cao Ngan LED" Language="1033" Version="$(var.Version)"
+           Manufacturer="Cao Ngan LED" UpgradeCode="6F3FA4E8-02C5-5648-A6EE-24A3CFEDEB8F">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
     <MajorUpgrade Schedule="afterInstallExecute" AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A newer version of Cao Ngạn LED is already installed." />
+                  DowngradeErrorMessage="A newer version of Cao Ngan LED is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Property Id="VCREDIST_INSTALLED">
@@ -12,22 +12,22 @@
                       Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
                       Name="Installed" Type="raw" Win64="yes" />
     </Property>
-    <Condition Message="Install the Microsoft Visual C++ 2015-2022 x64 Redistributable before installing Cao Ngạn LED.">
+    <Condition Message="Install the Microsoft Visual C++ 2015-2022 x64 Redistributable before installing Cao Ngan LED.">
       Installed OR VCREDIST_INSTALLED
     </Condition>
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="Cao Ngạn LED" />
+        <Directory Id="INSTALLFOLDER" Name="Cao Ngan LED" />
       </Directory>
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="Cao Ngạn LED" />
+        <Directory Id="ApplicationProgramsFolder" Name="Cao Ngan LED" />
       </Directory>
     </Directory>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="StartMenuShortcut" Guid="164C258F-2087-5912-A64A-2A304ABE6DD9">
-        <Shortcut Id="CaoNganShortcut" Name="Cao Ngạn LED"
+        <Shortcut Id="CaoNganShortcut" Name="Cao Ngan LED"
                   Target="[INSTALLFOLDER]caongan_led.exe" WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\CaoNgan\CaonganLed" Name="Installed"
@@ -35,7 +35,7 @@
       </Component>
     </DirectoryRef>
 
-    <Feature Id="MainFeature" Title="Cao Ngạn LED" Level="1">
+    <Feature Id="MainFeature" Title="Cao Ngan LED" Level="1">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="StartMenuShortcut" />
     </Feature>

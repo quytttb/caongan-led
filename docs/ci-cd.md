@@ -68,7 +68,7 @@ Windows/LED và checklist **trước khi** đẩy tag hoặc chạy workflow, v�
 | Nền tảng | Tệp | Ghi chú |
 |----------|-----|---------|
 | Windows x64 | `caongan-led-<ver>-win-x64.zip` | Giải nén và chạy `caongan_led.exe`; không cần cài. |
-| Windows x64 | `caongan-led-<ver>-win-x64.msi` | Cài per-machine vào `Program Files\Cao Ngạn LED`, tạo shortcut Start Menu; cần quyền admin và Microsoft Visual C++ 2015-2022 x64 Redistributable. Gỡ bằng **Apps & features**; không xóa dữ liệu ứng dụng. |
+| Windows x64 | `caongan-led-<ver>-win-x64.msi` | Cài per-machine vào `Program Files\Cao Ngan LED`, tạo shortcut Start Menu; cần quyền admin và Microsoft Visual C++ 2015-2022 x64 Redistributable. Gỡ bằng **Apps & features**; không xóa dữ liệu ứng dụng. |
 | Linux amd64 | `caongan-led_<ver>_amd64.deb` | Tự chứa Qt trong `/opt/caongan-led`; cài bằng `sudo apt install ./caongan-led_<ver>_amd64.deb`; cần Ubuntu 24.04 trở lên. |
 
 Mỗi tệp có `.sha256` đi kèm. Script không đóng gói hay cài Visual C++ Redistributable, không
