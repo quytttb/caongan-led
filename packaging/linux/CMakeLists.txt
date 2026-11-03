@@ -54,7 +54,7 @@ set(CPACK_DEBIAN_PACKAGE_SECTION utils)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
 # Qt/QML được deploy riêng; đây là các thư viện hệ thống bắt buộc trên Ubuntu 24.04.
 set(CPACK_DEBIAN_PACKAGE_DEPENDS
-    "libc6 (>= 2.39), libstdc++6, libgcc-s1, libatomic1, libzstd1, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libopengl0, libfontconfig1, libdbus-1-3, libglib2.0-0 | libglib2.0-0t64, libxcb1, libx11-6, libx11-xcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render0, libxcb-render-util0, libxcb-shape0, libxcb-shm0, libxcb-sync1, libxcb-util1, libxcb-xfixes0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1"
+    "libc6 (>= 2.39), libstdc++6, libgcc-s1, libatomic1, libzstd1, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libopengl0, libfontconfig1, libdbus-1-3, libgssapi-krb5-2, libglib2.0-0 | libglib2.0-0t64, libxcb1, libx11-6, libx11-xcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render0, libxcb-render-util0, libxcb-shape0, libxcb-shm0, libxcb-sync1, libxcb-util1, libxcb-xfixes0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1"
 )
 set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/caongan-led")
 include(CPack)
