@@ -3,14 +3,18 @@ name: Build Release
 on:
   push:
     tags: ['v*']
-  # Chọn một tag đã tồn tại làm ref; không build nhầm branch hiện tại.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag phát hành công khai, ví dụ v0.1.0 (tạo nếu chưa tồn tại)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -18,32 +22,46 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      commit: ${{ steps.meta.outputs.commit }}
+      tag_existed: ${{ steps.meta.outputs.tag_existed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - name: Validate tag and project version
         id: meta
         env:
-          TAG: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           python3 - <<'PY'
-          import os, pathlib, re
+          import os, re, subprocess
           tag = os.environ['TAG']
-          if os.environ['REF_TYPE'] != 'tag':
-              raise SystemExit('Select an existing tag as the workflow ref; branches cannot create a release')
           if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag):
               raise SystemExit(f'Invalid tag: {tag}; expected vMAJOR.MINOR.PATCH')
-          cmake = pathlib.Path('CMakeLists.txt').read_text(encoding='utf-8')
+          ref = f'refs/tags/{tag}'
+          tag_exists = subprocess.run(['git', 'show-ref', '--verify', '--quiet', ref]).returncode == 0
+          if not tag_exists and os.environ['EVENT_NAME'] != 'workflow_dispatch':
+              raise SystemExit(f'Tag not found: {tag}')
+          source = ref if tag_exists else 'HEAD'
+          commit = subprocess.check_output(['git', 'rev-parse', '--verify', f'{source}^{{commit}}'], text=True).strip()
+          cmake = subprocess.check_output(['git', 'show', f'{commit}:CMakeLists.txt'], text=True, encoding='utf-8')
           match = re.search(r'project\s*\(\s*caongan_led\s+VERSION\s+(\d+\.\d+\.\d+)', cmake)
           if not match or match.group(1) != tag[1:]:
               raise SystemExit('Tag must match CMake project version')
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'tag={tag}\n')
               out.write(f'version={match.group(1)}\n')
+              out.write(f'commit={commit}\n')
+              out.write(f'tag_existed={str(tag_exists).lower()}\n')
           PY
 
   checks:
     needs: validate
     uses: ./.github/workflows/ci.yml
+    with:
+      source_sha: ${{ needs.validate.outputs.commit }}
     permissions:
       contents: read
 
@@ -53,9 +71,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: caongan-led-windows-${{ github.sha }}
+          name: caongan-led-windows-${{ needs.validate.outputs.commit }}
           path: release-assets
       - name: Verify expected artifacts
         env:
@@ -63,10 +84,33 @@ jobs:
         run: |
           cd release-assets
           sha256sum -c "caongan-led-${VERSION}-win-x64.zip.sha256"
+      - name: Verify tag still points to tested commit
+        env:
+          TAG: ${{ needs.validate.outputs.tag }}
+          EXPECTED_COMMIT: ${{ needs.validate.outputs.commit }}
+          TAG_EXISTED: ${{ needs.validate.outputs.tag_existed }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            git fetch --no-tags --depth=1 origin "refs/tags/$TAG"
+            actual=$(git rev-parse 'FETCH_HEAD^{commit}')
+            if [[ "$actual" != "$EXPECTED_COMMIT" ]]; then
+              echo "::error::Tag $TAG no longer points to the tested commit."
+              exit 1
+            fi
+          else
+            status=$?
+            if [[ "$status" -ne 2 || "$TAG_EXISTED" == 'true' ]]; then
+              echo "::error::Could not verify the original tag $TAG."
+              exit 1
+            fi
+            echo "New tag $TAG will be created from the tested commit."
+          fi
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ needs.validate.outputs.tag }}
+          target_commitish: ${{ needs.validate.outputs.commit }}
           name: Cao Ngạn LED ${{ needs.validate.outputs.version }}
           draft: false
           prerelease: false

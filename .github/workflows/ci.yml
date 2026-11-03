@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      source_sha:
+        description: 'Commit to build and test; defaults to the triggering commit.'
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -27,6 +32,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           submodules: recursive
+          ref: ${{ inputs.source_sha || github.sha }}
 
       - name: Read Qt version
         id: qt
@@ -97,6 +103,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           submodules: recursive
+          ref: ${{ inputs.source_sha || github.sha }}
 
       - name: Read Qt version
         id: qt
@@ -155,7 +162,7 @@ jobs:
       - name: Upload Windows test artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: caongan-led-windows-${{ github.sha }}
+          name: caongan-led-windows-${{ inputs.source_sha || github.sha }}
           path: |
             dist/*.zip
             dist/*.zip.sha256
