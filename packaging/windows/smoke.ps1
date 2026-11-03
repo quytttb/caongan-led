@@ -32,7 +32,8 @@ try {
     $env:QT_QPA_PLATFORM = 'windows'
     $env:QT_FATAL_WARNINGS = '1'
     $env:CAONGAN_LED_BASE_DIR = Join-Path $ScratchDir 'app-data'
-    $Process = Start-Process -FilePath $Exe -ArgumentList @('--preview', '--simulate', '--verify-preview-windows') `
+    # Chay che do thuong voi nguon trong de kiem tra SQLite trong sandbox.
+    $Process = Start-Process -FilePath $Exe -ArgumentList @('--preview', '--verify-preview-windows') `
         -WorkingDirectory $ScratchDir -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
 
     if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
@@ -46,7 +47,21 @@ try {
     if (-not (Test-Path (Join-Path $env:CAONGAN_LED_BASE_DIR 'data/snapshot.db') -PathType Leaf)) {
         throw "Khong tao duoc SQLite snapshot; xem $Stderr"
     }
-    Write-Host 'Smoke package thanh cong: hai cua so preview hien thi va SQLite da khoi dong.'
+    # Chay them mo phong voi vung du lieu rieng; khong yeu cau snapshot o che do nay.
+    $env:CAONGAN_LED_BASE_DIR = Join-Path $ScratchDir 'simulation-data'
+    $Stderr = Join-Path $ScratchDir 'simulation-stderr.log'
+    $Stdout = Join-Path $ScratchDir 'simulation-stdout.log'
+    $Process = Start-Process -FilePath $Exe -ArgumentList @('--preview', '--simulate', '--verify-preview-windows') `
+        -WorkingDirectory $ScratchDir -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
+    if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
+        throw "Het thoi gian cho kiem tra mo phong; xem $Stderr"
+    }
+    $Process.Refresh()
+    if ($Process.ExitCode -ne 0) { throw "App khong qua kiem tra mo phong (ma $($Process.ExitCode)); xem $Stderr" }
+    if (-not (Test-Path $Stderr) -or (Get-Content $Stderr -Raw -Encoding utf8) -notmatch 'PREVIEW_WINDOWS_OK') {
+        throw "Khong xac nhan duoc hai cua so mo phong; xem $Stderr"
+    }
+    Write-Host 'Smoke package thanh cong: preview thuong/mo phong hien thi va SQLite da khoi dong.'
 } finally {
     if ($Process) {
         $Process.Refresh()

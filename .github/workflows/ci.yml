@@ -162,8 +162,10 @@ jobs:
               export CAONGAN_LED_BASE_DIR=/tmp/caongan-home/app-data
               export QT_QPA_PLATFORM=offscreen QT_FATAL_WARNINGS=1
               test "$(caongan-led --version)" = "CaonganLed $PACKAGE_VERSION"
-              caongan-led --preview --simulate --verify-preview-windows
+              caongan-led --preview --verify-preview-windows
+              test -f /tmp/caongan-home/app-data/data/snapshot.db
               unset QT_QPA_PLATFORM QT_FATAL_WARNINGS
+              export CAONGAN_LED_BASE_DIR=/tmp/caongan-home/simulation-data
               timeout 45s xvfb-run -a -s "-screen 0 1920x1200x24" \
                 caongan-led --preview --simulate --verify-preview-windows > /tmp/xcb.log 2>&1
               grep -q PREVIEW_WINDOWS_OK /tmp/xcb.log
@@ -254,7 +256,7 @@ jobs:
       - name: Test deployed package without Qt on PATH
         shell: pwsh
         run: >-
-          ./packaging/windows/smoke.ps1
+          ./.package-tools/packaging/windows/smoke.ps1
           -PackageDir "${{ github.workspace }}/dist/caongan-led-${{ steps.version.outputs.version }}-win-x64"
           -ScratchDir "$env:RUNNER_TEMP/caongan-led-package-smoke"
 
@@ -273,7 +275,7 @@ jobs:
           ./.package-tools/packaging/windows/smoke-msi.ps1
           -MsiPath "${{ github.workspace }}/dist/caongan-led-${{ steps.version.outputs.version }}-win-x64.msi"
           -ScratchDir "$env:RUNNER_TEMP/caongan-msi-smoke"
-          -PackageSmokeScript "${{ github.workspace }}/packaging/windows/smoke.ps1"
+          -PackageSmokeScript "${{ github.workspace }}/.package-tools/packaging/windows/smoke.ps1"
 
       - name: Upload Windows test artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

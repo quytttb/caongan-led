@@ -32,11 +32,16 @@ for binary in "$prefix/bin/caongan_led" "$prefix/plugins/platforms/libqxcb.so" \
     fi
 done
 run_app() {
+    local data_dir="$1"
+    shift
     env -i HOME="$scratch" PATH=/usr/bin:/bin LANG=C.UTF-8 \
         QT_QPA_PLATFORM=offscreen QT_FATAL_WARNINGS=1 XDG_RUNTIME_DIR="$scratch/xdg" \
-        CAONGAN_LED_BASE_DIR="$scratch/app-data" "$prefix/bin/caongan_led" "$@"
+        CAONGAN_LED_BASE_DIR="$data_dir" "$prefix/bin/caongan_led" "$@"
 }
-[[ "$(run_app --version)" == "CaonganLed $version" ]]
-run_app --preview --simulate --verify-preview-windows
+[[ "$(run_app "$scratch/app-data" --version)" == "CaonganLed $version" ]]
+# Nguồn trống trong sandbox; chế độ thường phải khởi tạo SQLite.
+run_app "$scratch/app-data" --preview --verify-preview-windows
 [[ -f "$scratch/app-data/data/snapshot.db" ]]
+# Chế độ mô phỏng cũng phải chạy được, nhưng không cần/không nên dựa vào DB thật.
+run_app "$scratch/simulation-data" --preview --simulate --verify-preview-windows
 echo 'DEB_SMOKE_OK'

@@ -13,11 +13,12 @@ hoặc được **Build Release** gọi lại với `source_sha`/`build_version`
   `qmllint` với `-W 0` nhưng tạm tắt toàn bộ nhóm `unqualified`, rồi chạy thử QML offscreen
   có `QT_FATAL_WARNINGS=1`. Sau đó build **DEB** tự chứa Qt, kiểm tra SHA-256 và chạy app
   chỉ với Qt trong gói; cài/gỡ gói trên Ubuntu 24.04 sạch trong Docker và chạy cả nền tảng
-  `xcb` (Xvfb) lẫn `offscreen`. Artifact `caongan-led-linux-<commit>` giữ 7 ngày.
+  `xcb` (Xvfb) lẫn `offscreen`. Preview thường và mô phỏng dùng vùng dữ liệu riêng; chỉ preview
+  thường được yêu cầu tạo SQLite snapshot. Artifact `caongan-led-linux-<commit>` giữ 7 ngày.
 - **Windows 2022 x64**: cài Qt, dùng Visual Studio DevShell để thiết lập MSVC (không phụ
   thuộc action Node 20), chạy `packaging/windows/build.ps1` (build Release và CTest), deploy
   bằng `windeployqt`, kiểm tra plugin Windows/SQLite, tạo ZIP + SHA-256 và chạy smoke test
-  package. Sau đó tạo **MSI** bằng WiX 3 (có sẵn trên runner), cài/gỡ im lặng trên runner
+  package ở cả chế độ thường và mô phỏng, kiểm tra SQLite riêng ở chế độ thường. Sau đó tạo **MSI** bằng WiX 3 (có sẵn trên runner), cài/gỡ im lặng trên runner
   cô lập và chạy lại smoke trên đúng thư mục đã cài. Artifact
   `caongan-led-windows-<commit>` giữ 7 ngày. Qt SQLite driver là bắt buộc, không được bỏ qua
   test khi plugin thiếu.
