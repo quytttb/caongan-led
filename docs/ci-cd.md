@@ -1,20 +1,26 @@
-# CI/CD — gói Windows thử nghiệm
+# CI/CD — build và phát hành Windows
 
-Workflow tham khảo cách tổ chức của `quytttb/data-logger`, điều chỉnh cho Qt Quick desktop và Windows thay vì tạo `.deb` Raspberry Pi. Mỗi checkout lấy submodule đệ quy; Qt lấy phiên bản duy nhất từ `packaging/qt_version.txt` (6.11.1), không kéo Graphs/Modbus/HTTP Server. Actions và nguồn aqtinstall được ghim revision.
+Ba workflow **CI**, **Dev Build** và **Build Release** được tách riêng cho ứng dụng Qt Quick desktop. Mỗi checkout lấy submodule đệ quy; Qt lấy phiên bản duy nhất từ `packaging/qt_version.txt` (6.11.1), không kéo Graphs/Modbus/HTTP Server. Actions và nguồn aqtinstall được ghim revision.
 
 ## CI
 
 `.github/workflows/ci.yml` chạy khi push `main`/`master`, pull request hoặc được gọi thủ công:
 
 - **Linux**: cài Qt, build Release/Ninja, chạy CTest (bao gồm simulator và đường file → app), `qmllint` với `-W 0` nhưng tạm tắt toàn bộ nhóm `unqualified`, rồi chạy thử QML offscreen có `QT_FATAL_WARNINGS=1`.
-- **Windows 2022 x64**: cài Qt/MSVC, chạy `packaging/windows/build.ps1` (build Release và CTest), deploy bằng `windeployqt`, kiểm tra plugin Windows/SQLite, tạo ZIP + SHA-256, khởi động package ở thư mục làm việc khác với Qt build bị loại khỏi PATH và kiểm tra SQLite cùng trạng thái visible của hai cửa sổ. Artifact `caongan-led-windows-<commit>` giữ 7 ngày. Qt SQLite driver là bắt buộc, không được bỏ qua test khi plugin thiếu.
+- **Windows 2022 x64**: cài Qt, dùng Visual Studio DevShell để thiết lập MSVC (không phụ thuộc action Node 20), chạy `packaging/windows/build.ps1` (build Release và CTest), deploy bằng `windeployqt`, kiểm tra plugin Windows/SQLite, tạo ZIP + SHA-256 và chạy smoke test package. Artifact `caongan-led-windows-<commit>` giữ 7 ngày. Qt SQLite driver là bắt buộc, không được bỏ qua test khi plugin thiếu.
 
 Không đặt secret, dữ liệu nguồn hay cấu hình vận hành trong Git hoặc artifact. Các file TT10 trong gói là mẫu giả. `qmllint` chưa kiểm tra nhóm `unqualified`; CI chạy xanh không chứng minh màn thật đọc rõ, không thay thế máy Windows sạch, thiết bị nguồn hoặc thử 72 giờ.
 
-Lần chạy tham chiếu ngày 02/11/2026: [CI 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271), commit `38c8ae7`; Linux và Windows đều build/test/deploy, nhưng smoke cũ không phát hiện lỗi cửa sổ bị ẩn. Test cửa sổ và smoke mới được bổ sung sau lần chạy này, chưa xác minh Windows. Artifact cũ có thời hạn, không phải bản phát hành chính thức và không dùng để kiểm tra giao diện.
+Lần chạy tham chiếu: [CI 41548568987](https://github.com/quytttb/caongan-led/actions/runs/41548568987), commit `27b4024`; Linux và Windows đều build/test, Windows đã deploy và chạy smoke mới. Chưa thay thế kiểm tra trên máy Windows sạch hay PC/LED đích.
 
-## Bản nháp theo tag
+## Dev Build
 
-`.github/workflows/build-release.yml` chỉ chạy khi đẩy tag `vMAJOR.MINOR.PATCH` trùng `project(... VERSION ...)` trong `CMakeLists.txt`. Nó chạy lại toàn bộ CI của đúng commit/tag, tải artifact Windows, xác minh SHA-256 và tạo **draft prerelease**, không tự xuất bản hay đánh dấu bản mới nhất. Không cần token cá nhân: bước tạo draft dùng `GITHUB_TOKEN` với `contents: write` giới hạn cho job đó.
+`.github/workflows/dev-build.yml` tự tạo artifact sau khi **CI của một lần push lên `main`/`master` thành công**. Nó lấy đúng package theo commit và run CI, kiểm tra lại SHA-256 rồi tải lên artifact `caongan-led-dev-windows-<commit>`, kèm thông tin nguồn; giữ 7 ngày. Cách này không build trùng và không tạo bản dev từ PR, CI lỗi hoặc CI bị hủy.
 
-Chỉ người có thẩm quyền được tạo tag, kiểm tra giấy phép, duyệt package, kết quả Windows/LED và checklist trước khi quyết định có xuất bản draft. Việc push nhánh thông thường không tạo tag hay release. Windows runtime trong CI đã có MSVC redistributable; script không đóng gói/cài redistributable, và gói chưa mặc nhiên đủ điều kiện phân phối.
+Có thể chạy **Dev Build → Run workflow** với branch được chọn: trường hợp này chạy lại CI cho đúng commit trước khi tạo artifact. Dev chỉ là kênh thử nghiệm; executable vẫn được build CMake `Release` tối ưu, không phải bản `Debug`.
+
+## Build Release
+
+`.github/workflows/build-release.yml` chạy khi đẩy tag `vMAJOR.MINOR.PATCH` trùng `project(... VERSION ...)` trong `CMakeLists.txt`, hoặc chạy thủ công với **ref là tag đã tồn tại**, ví dụ `gh workflow run build-release.yml --ref v0.1.0`. Chọn branch khi chạy thủ công sẽ bị từ chối để tránh build sai commit. Workflow chạy lại toàn bộ CI của đúng tag, tải artifact Windows, xác minh SHA-256 rồi **đăng GitHub Release công khai**, đánh dấu bản mới nhất; không phải draft hoặc prerelease. Không cần token cá nhân: bước phát hành dùng `GITHUB_TOKEN` với `contents: write` giới hạn cho job đó. Luồng phát hành theo tag chưa được chạy end-to-end.
+
+Chỉ người có thẩm quyền được tạo tag hoặc chạy phát hành; cần kiểm tra giấy phép, kết quả Windows/LED và checklist **trước khi** đẩy tag hoặc chạy workflow, vì release sẽ được công khai tự động. Việc push nhánh thông thường không tạo tag hay release. Windows runtime trong CI đã có MSVC redistributable; script không đóng gói/cài redistributable, và gói chưa mặc nhiên đủ điều kiện phân phối.

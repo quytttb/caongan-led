@@ -1,8 +1,10 @@
-name: Draft Windows release
+name: Build Release
 
 on:
   push:
     tags: ['v*']
+  # Chọn một tag đã tồn tại làm ref; không build nhầm branch hiện tại.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,10 +24,13 @@ jobs:
         id: meta
         env:
           TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           python3 - <<'PY'
           import os, pathlib, re
           tag = os.environ['TAG']
+          if os.environ['REF_TYPE'] != 'tag':
+              raise SystemExit('Select an existing tag as the workflow ref; branches cannot create a release')
           if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag):
               raise SystemExit(f'Invalid tag: {tag}; expected vMAJOR.MINOR.PATCH')
           cmake = pathlib.Path('CMakeLists.txt').read_text(encoding='utf-8')
@@ -58,18 +63,18 @@ jobs:
         run: |
           cd release-assets
           sha256sum -c "caongan-led-${VERSION}-win-x64.zip.sha256"
-      - name: Create draft prerelease
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: Cao Ngạn LED ${{ needs.validate.outputs.version }} — thử nghiệm
-          draft: true
-          prerelease: true
-          make_latest: false
+          name: Cao Ngạn LED ${{ needs.validate.outputs.version }}
+          draft: false
+          prerelease: false
+          make_latest: true
           generate_release_notes: true
           body: |
-            Bản thử nghiệm, chưa được chấp thuận đưa vào vận hành. Cần kiểm tra trên máy Windows/LED thực,
-            hợp đồng dữ liệu, giấy phép và soak test theo `docs/acceptance-checklist.md`.
+            Xác minh SHA-256 trước khi sử dụng. Xem hướng dẫn triển khai và checklist nghiệm thu
+            trong gói trước khi đưa ứng dụng vào vận hành trên máy Windows/LED.
           files: |
             release-assets/*.zip
             release-assets/*.zip.sha256

@@ -29,7 +29,7 @@ Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule updat
 - [Kiến trúc](docs/architecture.md), [hợp đồng đầu vào](docs/input-contract.md), [cấu hình](docs/config-contract.md).
 - [Hướng dẫn vận hành](docs/runbook.md), [hướng dẫn thử](docs/walkthrough.md), [checklist nghiệm thu](docs/acceptance-checklist.md).
 - [Windows build/deploy và rollback](packaging/windows/README.md); [nguồn gốc](docs/provenance.md), [giấy phép bên thứ ba](THIRD_PARTY_NOTICES.md), [việc còn lại](docs/todo.md).
-- [CI/CD và artifact thử nghiệm](docs/ci-cd.md).
+- [CI, Dev Build và Build Release](docs/ci-cd.md).
 - [Simulator TT10 cho test thủ công](docs/simulator.md).
 
 Thứ tự cố định: khí thải **O₂, CO, NOx, SO₂, PM, Temp, Flow, P**; nước thải **pH, TSS, COD, NH₄⁺**. `00` là đang đo, không có nghĩa là đạt ngưỡng hay tuân thủ quy chuẩn. Không chuyển đổi NH₄-N, PM mg/m³ hay NO/NO₂ thành giá trị khác.

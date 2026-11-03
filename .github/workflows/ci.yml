@@ -118,14 +118,20 @@ jobs:
           cache: true
           cache-key-prefix: caongan-qt${{ steps.qt.outputs.version }}-win-msvc2022
 
-      - name: Configure MSVC x64
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
-        with:
-          arch: x64
-
       - name: Build and CTest
         shell: pwsh
-        run: ./packaging/windows/build.ps1 -QtRoot $env:QT_ROOT_DIR
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          if (-not (Test-Path $vswhere)) { throw 'Khong tim thay vswhere.' }
+          $vs = & $vswhere -latest -products '*' -version '[17.0,18.0)' `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $vs) { throw 'Khong tim thay Visual Studio 2022 va MSVC x64.' }
+          $devShell = Join-Path $vs 'Common7/Tools/Microsoft.VisualStudio.DevShell.dll'
+          if (-not (Test-Path $devShell)) { throw 'Khong tim thay Visual Studio DevShell.' }
+          Import-Module $devShell
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+          if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw 'Khong tim thay compiler MSVC.' }
+          ./packaging/windows/build.ps1 -QtRoot $env:QT_ROOT_DIR
 
       - name: Read built version
         id: version
