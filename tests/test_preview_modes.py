@@ -2,6 +2,7 @@
 """Kiểm tra preview thường và preview mô phỏng dùng các vùng dữ liệu riêng."""
 
 import os
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -39,7 +40,7 @@ def main() -> None:
         snapshot = run_preview("normal")
         if not snapshot.is_file():
             raise AssertionError("Preview thường không khởi tạo snapshot.db")
-        with sqlite3.connect(snapshot) as database:
+        with closing(sqlite3.connect(snapshot)) as database:
             tables = {row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if "latest_reading" not in tables:
                 raise AssertionError("Snapshot thiếu bảng latest_reading")
