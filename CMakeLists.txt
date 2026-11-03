@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
 
+set(CAONGAN_BUILD_VERSION "1.0.0" CACHE STRING "Application version (MAJOR.MINOR.PATCH)")
+if(NOT CAONGAN_BUILD_VERSION MATCHES "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+    message(FATAL_ERROR "CAONGAN_BUILD_VERSION must be MAJOR.MINOR.PATCH")
+endif()
+
 project(caongan_led
-    VERSION 0.1.0
+    VERSION ${CAONGAN_BUILD_VERSION}
     DESCRIPTION "Màn LED quan trắc khí thải và nước thải Cao Ngạn"
     LANGUAGES CXX
 )

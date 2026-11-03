@@ -46,6 +46,13 @@ set_tests_properties(tst_presentation PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-data"
 )
 
+add_test(NAME tst_app_version COMMAND $<TARGET_FILE:caongan_led> --version)
+string(REPLACE "." "\\." CAONGAN_TEST_VERSION_PATTERN "${PROJECT_VERSION}")
+set_tests_properties(tst_app_version PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    PASS_REGULAR_EXPRESSION "CaonganLed ${CAONGAN_TEST_VERSION_PATTERN}"
+)
+
 add_test(NAME tst_qml_windows COMMAND $<TARGET_FILE:caongan_led>
     --preview --simulate --verify-preview-windows)
 set_tests_properties(tst_qml_windows PROPERTIES

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag phát hành công khai, ví dụ v0.1.0 (tạo nếu chưa tồn tại)'
+        description: 'Tag phát hành công khai, ví dụ v1.0.0 (tạo nếu chưa tồn tại)'
         required: true
         type: string
 
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - name: Validate tag and project version
+      - name: Resolve tag and source commit
         id: meta
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
@@ -38,7 +38,7 @@ jobs:
           python3 - <<'PY'
           import os, re, subprocess
           tag = os.environ['TAG']
-          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag):
+          if not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', tag):
               raise SystemExit(f'Invalid tag: {tag}; expected vMAJOR.MINOR.PATCH')
           ref = f'refs/tags/{tag}'
           tag_exists = subprocess.run(['git', 'show-ref', '--verify', '--quiet', ref]).returncode == 0
@@ -46,13 +46,9 @@ jobs:
               raise SystemExit(f'Tag not found: {tag}')
           source = ref if tag_exists else 'HEAD'
           commit = subprocess.check_output(['git', 'rev-parse', '--verify', f'{source}^{{commit}}'], text=True).strip()
-          cmake = subprocess.check_output(['git', 'show', f'{commit}:CMakeLists.txt'], text=True, encoding='utf-8')
-          match = re.search(r'project\s*\(\s*caongan_led\s+VERSION\s+(\d+\.\d+\.\d+)', cmake)
-          if not match or match.group(1) != tag[1:]:
-              raise SystemExit('Tag must match CMake project version')
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
               out.write(f'tag={tag}\n')
-              out.write(f'version={match.group(1)}\n')
+              out.write(f'version={tag[1:]}\n')
               out.write(f'commit={commit}\n')
               out.write(f'tag_existed={str(tag_exists).lower()}\n')
           PY
@@ -62,6 +58,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       source_sha: ${{ needs.validate.outputs.commit }}
+      build_version: ${{ needs.validate.outputs.version }}
     permissions:
       contents: read
 

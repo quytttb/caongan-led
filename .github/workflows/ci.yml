@@ -11,6 +11,10 @@ on:
         description: 'Commit to build and test; defaults to the triggering commit.'
         type: string
         required: false
+      build_version:
+        description: 'Optional application version for a release build.'
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -61,9 +65,23 @@ jobs:
           cache-key-prefix: caongan-qt${{ steps.qt.outputs.version }}-linux
 
       - name: Configure
-        run: >-
-          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCAONGAN_BUILD_TESTS=ON
+        env:
+          BUILD_VERSION: ${{ inputs.build_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(-S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
+                "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR" -DCAONGAN_BUILD_TESTS=ON)
+          if [[ -n "$BUILD_VERSION" ]]; then
+            args+=("-DCAONGAN_BUILD_VERSION=$BUILD_VERSION")
+          fi
+          cmake "${args[@]}"
+          if [[ -n "$BUILD_VERSION" ]]; then
+            grep -Fxq "CMAKE_PROJECT_VERSION:STATIC=$BUILD_VERSION" build-ci/CMakeCache.txt || {
+              echo 'Configured version does not match the release tag.' >&2
+              exit 1
+            }
+          fi
 
       - name: Build
         run: cmake --build build-ci --parallel 4
@@ -127,6 +145,8 @@ jobs:
 
       - name: Build and CTest
         shell: pwsh
+        env:
+          BUILD_VERSION: ${{ inputs.build_version }}
         run: |
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
           if (-not (Test-Path $vswhere)) { throw 'Khong tim thay vswhere.' }
@@ -138,15 +158,19 @@ jobs:
           Import-Module $devShell
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
           if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw 'Khong tim thay compiler MSVC.' }
-          ./packaging/windows/build.ps1 -QtRoot $env:QT_ROOT_DIR
+          ./packaging/windows/build.ps1 -QtRoot $env:QT_ROOT_DIR -Version $env:BUILD_VERSION
 
       - name: Read built version
         id: version
         shell: pwsh
+        env:
+          BUILD_VERSION: ${{ inputs.build_version }}
         run: |
           $line = Select-String -Path build/windows-release/CMakeCache.txt -Pattern '^CMAKE_PROJECT_VERSION:STATIC=(\d+\.\d+\.\d+)$' | Select-Object -First 1
           if (-not $line) { throw 'CMake project version not found' }
-          "version=$($line.Matches[0].Groups[1].Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $version = $line.Matches[0].Groups[1].Value
+          if ($env:BUILD_VERSION -and $version -ne $env:BUILD_VERSION) { throw 'Build version does not match release tag.' }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Deploy and checksum
         shell: pwsh

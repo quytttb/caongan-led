@@ -28,7 +28,7 @@
 #include <cstdio>
 
 #ifndef CAONGAN_LED_VERSION
-#define CAONGAN_LED_VERSION "0.1.0"
+#define CAONGAN_LED_VERSION "1.0.0"
 #endif
 
 namespace {

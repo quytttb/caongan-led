@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory = $true)] [string] $QtRoot,
     [string] $BuildDir = "",
     [string] $OutputRoot = "",
-    [string] $Version = '0.1.0'
+    [string] $Version = '1.0.0'
 )
 
 $ErrorActionPreference = 'Stop'

@@ -7,11 +7,11 @@
 Chuẩn bị source đầy đủ, UI kit đúng revision `24ef01544e398e0e181933a71ee00d40f28c697e`, Qt **6.11.1 MSVC x64** có Qt Quick/Controls/Layouts/SQL/Test, Visual Studio Build Tools/MSVC phù hợp Qt, CMake ≥3.24 và Ninja. Mở **x64 Native Tools/Developer PowerShell**; các script dưới không yêu cầu admin và không tự cài dependency:
 
 ```powershell
-.\packaging\windows\build.ps1 -QtRoot 'C:\Qt\6.11.1\msvc2022_64'
-.\packaging\windows\deploy.ps1 -QtRoot 'C:\Qt\6.11.1\msvc2022_64' -Version '0.1.0'
+.\packaging\windows\build.ps1 -QtRoot 'C:\Qt\6.11.1\msvc2022_64' -Version '1.0.0'
+.\packaging\windows\deploy.ps1 -QtRoot 'C:\Qt\6.11.1\msvc2022_64' -Version '1.0.0'
 ```
 
-Build script xác minh phiên bản Qt, revision và working tree kit nếu có Git, configure Ninja Release, build và CTest. Deploy kiểm tra kit trùng cache build, dùng `windeployqt --qmldir` và build directory làm đường dẫn import, không copy compiler runtime; kiểm tra `platforms\qwindows.dll` và `sqldrivers\qsqlite.dll`, tạo thư mục version riêng + ZIP + SHA-256. `-Version` phải trùng `CMAKE_PROJECT_VERSION` trong cache; script từ chối ghi đè package/ZIP/checksum có sẵn. Nếu bước deploy thất bại, thư mục mới tạo có thể còn dở dang: kiểm tra rồi tự xóa **đúng thư mục đó** nếu được phép, hoặc chọn output root khác; script không tự xóa gì.
+Build script xác minh phiên bản Qt, revision và working tree kit nếu có Git, configure Ninja Release, build và CTest. `-Version` của build chọn phiên bản ứng dụng mà không sửa source; khi bỏ qua, dùng phiên bản đã lưu trong cache hoặc mặc định trong CMake nếu build mới. Deploy kiểm tra kit trùng cache build, dùng `windeployqt --qmldir` và build directory làm đường dẫn import, không copy compiler runtime; kiểm tra `platforms\qwindows.dll` và `sqldrivers\qsqlite.dll`, tạo thư mục version riêng + ZIP + SHA-256. `-Version` của deploy phải trùng `CMAKE_PROJECT_VERSION` trong cache; script từ chối ghi đè package/ZIP/checksum có sẵn. Nếu bước deploy thất bại, thư mục mới tạo có thể còn dở dang: kiểm tra rồi tự xóa **đúng thư mục đó** nếu được phép, hoặc chọn output root khác; script không tự xóa gì.
 
 Script không chứng minh đủ mọi QML import/DLL hay quyền phân phối. Rà soát `THIRD_PARTY_NOTICES.md`, license Qt thực tế và MSVC Redistributable chính thức; chỉ cài redistributable khi được duyệt. Trên Windows sạch không cài Qt/dev tools, xác minh checksum ZIP, giải nén vào thư mục version có quyền đọc, thử với tài khoản vận hành và CWD khác, kiểm tra log/SQLite/QML/plugin, test 1/2 màn và DPI. Không chạy giả lập trên LED công khai như dữ liệu thật.
 

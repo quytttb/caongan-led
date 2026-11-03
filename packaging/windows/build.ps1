@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)] [string] $QtRoot,
-    [string] $BuildDir = ""
+    [string] $BuildDir = "",
+    [string] $Version = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,7 +35,15 @@ if ((Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $
 
 # Chay trong x64 Native Tools Command Prompt / Developer PowerShell (MSVC va Ninja).
 $env:PATH = "$(Join-Path $QtRoot 'bin');$env:PATH"
-& cmake -S $Root -B $BuildDir -G Ninja '-DCMAKE_BUILD_TYPE=Release' "-DCMAKE_PREFIX_PATH=$QtRoot" '-DCAONGAN_BUILD_TESTS=ON'
+$CMakeArgs = @('-S', $Root, '-B', $BuildDir, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',
+    "-DCMAKE_PREFIX_PATH=$QtRoot", '-DCAONGAN_BUILD_TESTS=ON')
+if ($Version) {
+    if ($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+        throw 'Version phai co dang MAJOR.MINOR.PATCH.'
+    }
+    $CMakeArgs += "-DCAONGAN_BUILD_VERSION=$Version"
+}
+& cmake @CMakeArgs
 if ($LASTEXITCODE -ne 0) { throw 'CMake configure that bai.' }
 & cmake --build $BuildDir --parallel
 if ($LASTEXITCODE -ne 0) { throw 'Build that bai.' }
