@@ -164,7 +164,7 @@ jobs:
               test "$(caongan-led --version)" = "CaonganLed $PACKAGE_VERSION"
               caongan-led --preview --simulate --verify-preview-windows
               unset QT_QPA_PLATFORM QT_FATAL_WARNINGS
-              timeout 45s xvfb-run -a -s '-screen 0 1920x1200x24' \
+              timeout 45s xvfb-run -a -s "-screen 0 1920x1200x24" \
                 caongan-led --preview --simulate --verify-preview-windows > /tmp/xcb.log 2>&1
               grep -q PREVIEW_WINDOWS_OK /tmp/xcb.log
               test -f /tmp/caongan-home/app-data/data/snapshot.db
