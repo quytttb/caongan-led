@@ -134,14 +134,7 @@ jobs:
           - Linux amd64: gói DEB tự chứa Qt, cài bằng `sudo apt install ./caongan-led_*_amd64.deb`.
           EOF
           if gh release view "$TAG" --json id >/dev/null 2>&1; then
-            echo "Cập nhật release hiện có: $TAG"
-            gh release edit "$TAG" \
-              --target "$COMMIT" \
-              --title "Cao Ngạn LED $VERSION" \
-              --notes-file "$body_file" \
-              --draft=false \
-              --prerelease=false \
-              --latest
+            echo "Release $TAG đã tồn tại; giữ metadata hiện có và chỉ đăng tải asset."
           else
             echo "Tạo release mới: $TAG"
             gh release create "$TAG" "$COMMIT" \
