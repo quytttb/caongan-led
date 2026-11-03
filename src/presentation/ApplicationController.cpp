@@ -92,12 +92,16 @@ ApplicationController::~ApplicationController()
 }
 
 void ApplicationController::initialize(const QString &configPathOverride,
-                                       bool previewMode)
+                                       bool previewMode,
+                                       bool simulate,
+                                       const QString &scenario)
 {
     if (m_initialized)
         return;
     m_initialized = true;
     m_previewMode = previewMode;
+    m_simulationActive = simulate && previewMode;
+    m_simulationScenario = scenario;
 
     AppPaths::ensureDirectories();
 
@@ -115,7 +119,11 @@ void ApplicationController::initialize(const QString &configPathOverride,
     connect(qGuiApp, &QGuiApplication::screenRemoved, this, &ApplicationController::refreshScreens);
     connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, &ApplicationController::refreshScreens);
 
-    startIngestion();
+    // Preview mô phỏng không mở database và không theo dõi nguồn thật.
+    if (m_simulationActive)
+        applySimulation();
+    else
+        startIngestion();
     updateWindowVisibility();
     updateStatusSummary();
 }
@@ -256,7 +264,10 @@ QString ApplicationController::commitConfiguration(const AppConfig &next, bool r
     emit configChanged();
 
     if (reloadIngestion) {
-        sendConfigToIngestion();
+        if (m_simulationActive)
+            applySimulation();
+        else
+            sendConfigToIngestion();
     }
     updateWindowVisibility();
     updateStatusSummary();
@@ -310,11 +321,11 @@ QVariantList ApplicationController::channelSettings() const
         map.insert(QStringLiteral("rangeText"), channel.rangeText);
         map.insert(QStringLiteral("thresholdLow"),
                    channel.threshold.hasLow
-                       ? formatReadingValue(channel.threshold.low, channel.decimals)
+                       ? QString::number(channel.threshold.low, 'g', 15)
                        : QString());
         map.insert(QStringLiteral("thresholdHigh"),
                    channel.threshold.hasHigh
-                       ? formatReadingValue(channel.threshold.high, channel.decimals)
+                       ? QString::number(channel.threshold.high, 'g', 15)
                        : QString());
         map.insert(QStringLiteral("staleSeconds"), channel.staleAfterSeconds);
         list.append(map);
@@ -462,7 +473,10 @@ QString ApplicationController::reloadConfiguration()
     const bool ok = loadConfiguration(&messages);
     m_ledModel->setConfig(m_config);
     updateWindowVisibility();
-    sendConfigToIngestion();
+    if (m_simulationActive)
+        applySimulation();
+    else
+        sendConfigToIngestion();
     emit configChanged();
     if (!ok)
         return m_configError;
@@ -476,6 +490,18 @@ void ApplicationController::requestRescan()
     IngestionService *service = m_ingestion;
     QMetaObject::invokeMethod(m_ingestion, [service]() { service->requestRescan(); },
                               Qt::QueuedConnection);
+}
+
+void ApplicationController::applySimulation()
+{
+    const QStringList names = simulationScenarioNames();
+    if (!names.contains(m_simulationScenario))
+        m_simulationScenario = names.value(0);
+    m_lastStates = buildSimulationStates(m_config, m_simulationScenario, tt10::nowUtc());
+    m_ledModel->setStates(m_lastStates);
+    recomputeCaptions(m_lastStates);
+    emit simulationChanged();
+    emit statesChanged();
 }
 
 void ApplicationController::clearDiagnostics()
@@ -619,6 +645,8 @@ void ApplicationController::quit()
 
 void ApplicationController::onChannelsChanged(const QVector<caongan::ChannelState> &states)
 {
+    if (m_simulationActive)
+        return;
     m_lastStates = states;
     m_ledModel->setStates(states);
     recomputeCaptions(states);
@@ -695,7 +723,9 @@ void ApplicationController::updateWindowVisibility()
 void ApplicationController::updateStatusSummary()
 {
     QString summary;
-    if (m_config.sources.isEmpty()) {
+    if (m_simulationActive) {
+        summary = QStringLiteral("DỮ LIỆU MÔ PHỎNG");
+    } else if (m_config.sources.isEmpty()) {
         summary = QStringLiteral("Chưa cấu hình nguồn dữ liệu");
     } else {
         int online = 0;

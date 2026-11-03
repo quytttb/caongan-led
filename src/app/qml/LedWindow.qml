@@ -10,8 +10,8 @@ Window {
     visibility: app.ledWindowVisible && targetReady
                 ? Window.FullScreen
                 : Window.Hidden
-    width: 1920
-    height: 1200
+    width: 1600
+    height: 960
 
     property bool targetReady: false
     property string positionedName: ""
@@ -40,10 +40,8 @@ Window {
         clip: true
 
         LedBoard {
-            width: 1920
-            height: 1200
             anchors.centerIn: parent
-            scale: Math.min(parent.width / 1920, parent.height / 1200)
+            scale: Math.min(parent.width / width, parent.height / height)
         }
     }
 }

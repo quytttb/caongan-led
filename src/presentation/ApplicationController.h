@@ -31,6 +31,7 @@ class ApplicationController : public QObject
     Q_PROPERTY(QVariantMap sourceStatuses READ sourceStatuses NOTIFY sourceStatusesChanged)
     Q_PROPERTY(QString targetScreenName READ targetScreenName NOTIFY configChanged)
     Q_PROPERTY(QString screenWarning READ screenWarning NOTIFY screenWarningChanged)
+    Q_PROPERTY(bool simulationActive READ simulationActive NOTIFY simulationChanged)
     Q_PROPERTY(bool previewMode READ previewMode CONSTANT)
     Q_PROPERTY(bool ledWindowVisible READ ledWindowVisible NOTIFY ledWindowChanged)
     Q_PROPERTY(QString exhaustCaption READ exhaustCaption NOTIFY statesChanged)
@@ -54,7 +55,9 @@ public:
     ~ApplicationController() override;
 
     void initialize(const QString &configPathOverride,
-                    bool previewMode);
+                    bool previewMode,
+                    bool simulate = false,
+                    const QString &scenario = {});
     void shutdown();
 
     QVariantMap branding() const;
@@ -64,6 +67,7 @@ public:
     QVariantMap sourceStatuses() const { return m_sourceStatuses; }
     QString targetScreenName() const;
     QString screenWarning() const { return m_screenWarning; }
+    bool simulationActive() const { return m_simulationActive; }
     bool previewMode() const { return m_previewMode; }
     bool ledWindowVisible() const { return m_ledWindowVisible; }
     QString exhaustCaption() const { return m_exhaustCaption; }
@@ -102,6 +106,7 @@ signals:
     void screensChanged();
     void sourceStatusesChanged();
     void screenWarningChanged();
+    void simulationChanged();
     void ledWindowChanged();
     void statesChanged();
     void statusSummaryChanged();
@@ -123,6 +128,7 @@ private:
     void updateWindowVisibility();
     void updateStatusSummary();
     void recomputeCaptions(const QVector<ChannelState> &states);
+    void applySimulation();
 
     LedParameterModel *m_ledModel = nullptr;
     DiagnosticsModel *m_diagnosticsModel = nullptr;
@@ -138,11 +144,13 @@ private:
     QString m_statusSummary = QStringLiteral("Đang khởi động");
     QString m_configError;
     QString m_screenWarning;
+    QString m_simulationScenario;
     QStringList m_logFiles;
     QString m_selectedLog;
     QString m_logContent;
     QString m_logViewNote;
     bool m_previewMode = false;
+    bool m_simulationActive = false;
     bool m_ledWindowVisible = false;
     bool m_initialized = false;
     bool m_shuttingDown = false;

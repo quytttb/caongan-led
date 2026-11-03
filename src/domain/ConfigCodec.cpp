@@ -5,16 +5,10 @@
 #include <QJsonValue>
 #include <QDir>
 #include <QSet>
-#include <cmath>
 
 namespace caongan {
 
 namespace {
-
-QJsonValue optionalNumber(bool present, double value)
-{
-    return present ? QJsonValue(value) : QJsonValue(QJsonValue::Null);
-}
 
 bool readBool(const QJsonObject &obj, const char *key, bool fallback)
 {
@@ -133,13 +127,20 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
     parsed.branding.companyName = readString(branding, "companyName");
     parsed.branding.branchName = readString(branding, "branchName");
     parsed.branding.address = readString(branding, "address");
-    
-
     const QJsonObject display = object.value(QStringLiteral("display")).toObject();
     parsed.display.targetScreenName = readString(display, "targetScreenName");
     parsed.display.fullScreen = readBool(display, "fullScreen", true);
-    parsed.display.designWidth = readInt(display, "designWidth", 1920);
-    parsed.display.designHeight = readInt(display, "designHeight", 1152);
+    parsed.display.designWidth = readInt(display, "designWidth", 1600);
+    parsed.display.designHeight = readInt(display, "designHeight", 960);
+
+    // Khung thiết kế là tọa độ logic, không phải mode pixel của Windows.
+    // Đọc được các cấu hình do những phiên bản trước đã lưu.
+    if (parsed.display.designWidth == 1920
+        && (parsed.display.designHeight == 1200 || parsed.display.designHeight == 1152
+            || parsed.display.designHeight == 960)) {
+        parsed.display.designWidth = 1600;
+        parsed.display.designHeight = 960;
+    }
 
     // Ngưỡng và dải đo là cố định theo nhà máy: bỏ qua mọi giá trị
     // threshold/range trong file cấu hình cũ, áp lại từ danh mục chuẩn.
@@ -227,9 +228,9 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
     if (config.schemaVersion != 1)
         issues.append({QStringLiteral("schemaVersion"), QStringLiteral("Chỉ hỗ trợ schemaVersion = 1")});
 
-    if (config.display.designWidth != 1920 || config.display.designHeight != 1152) {
+    if (config.display.designWidth != 1600 || config.display.designHeight != 960) {
         issues.append({QStringLiteral("display.designWidth/Height"),
-                       QStringLiteral("Khung thiết kế bắt buộc 1920 × 1152 px")});
+                       QStringLiteral("Khung bố cục bắt buộc 1600 × 960")});
     }
     if (config.storage.checkpointMaxRows < 100)
         issues.append({QStringLiteral("storage.checkpointMaxRows"),
@@ -265,6 +266,9 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
     }
 
     const QStringList canonical = canonicalChannelIds();
+    QHash<QString, ChannelConfig> fixedChannels;
+    for (const ChannelConfig &standard : defaultChannels())
+        fixedChannels.insert(standard.id, standard);
     QSet<QString> seenChannels;
     QHash<QString, QString> aliasOwner; // "source|alias" → channel
     for (const auto &channel : config.channels) {
@@ -305,6 +309,17 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
         if (channel.acceptedUnits.isEmpty())
             issues.append({prefix + QStringLiteral(".acceptedUnits"),
                            QStringLiteral("Kênh %1 chưa có đơn vị chấp nhận").arg(channel.symbol)});
+        const auto fixed = fixedChannels.constFind(channel.id);
+        if (fixed != fixedChannels.cend()) {
+            if (normalizeUnit(channel.unit) != normalizeUnit(fixed->unit))
+                issues.append({prefix + QStringLiteral(".unit"),
+                               QStringLiteral("Đơn vị phải khớp với ngưỡng cố định: %1").arg(fixed->unit)});
+            for (const QString &unit : channel.acceptedUnits) {
+                if (!unitAccepted(*fixed, unit))
+                    issues.append({prefix + QStringLiteral(".acceptedUnits"),
+                                   QStringLiteral("Đơn vị %1 không tương thích với ngưỡng cố định").arg(unit)});
+            }
+        }
         if (channel.decimals < 0 || channel.decimals > 6)
             issues.append({prefix + QStringLiteral(".decimals"),
                            QStringLiteral("decimals phải trong 0..6")});

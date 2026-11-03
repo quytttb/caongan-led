@@ -28,8 +28,6 @@ ApplicationWindow {
     Material.foreground: AppColors.primaryText
 
     property int pageIndex: 0
-    property string clockText: Qt.formatDateTime(new Date(), "HH:mm:ss")
-    property string dateText: Qt.formatDateTime(new Date(), "dd/MM/yyyy")
 
     onClosing: app.quit()
 
@@ -38,17 +36,6 @@ ApplicationWindow {
             showNormal()
         else
             showMaximized()
-    }
-
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: {
-            const now = new Date()
-            win.clockText = Qt.formatDateTime(now, "HH:mm:ss")
-            win.dateText = Qt.formatDateTime(now, "dd/MM/yyyy")
-        }
     }
 
     ColumnLayout {
@@ -91,19 +78,12 @@ ApplicationWindow {
                 anchors.rightMargin: 12
                 spacing: 14
 
-                Rectangle {
+                Image {
+                    objectName: "operatorLogo"
                     Layout.preferredWidth: 44
                     Layout.preferredHeight: 44
-                    radius: 8
-                    color: AppColors.accentContainer
-                    Text {
-                        anchors.centerIn: parent
-                        text: "CN"
-                        color: AppColors.accentContainerFg
-                        font.family: "Inter"
-                        font.pixelSize: 17
-                        font.bold: true
-                    }
+                    source: "qrc:/branding/factory-logo.jpg"
+                    fillMode: Image.PreserveAspectFit
                 }
 
                 ColumnLayout {
@@ -158,25 +138,6 @@ ApplicationWindow {
                             font.pixelSize: 12
                             font.bold: true
                         }
-                    }
-                }
-
-                ColumnLayout {
-                    spacing: 0
-                    Text {
-                        Layout.alignment: Qt.AlignRight
-                        text: win.clockText
-                        color: AppColors.primaryText
-                        font.family: "Inter"
-                        font.pixelSize: 20
-                        font.bold: true
-                    }
-                    Text {
-                        Layout.alignment: Qt.AlignRight
-                        text: "GIỜ HIỆN TẠI • " + win.dateText
-                        color: AppColors.textMuted
-                        font.family: "Inter"
-                        font.pixelSize: 10
                     }
                 }
 
@@ -268,8 +229,8 @@ ApplicationWindow {
                     Repeater {
                         model: [
                             "Nguồn dữ liệu",
-                            "Ngưỡng & hiển thị",
-                            "Màn hình & thương hiệu",
+                            "Ngưỡng & dải đo",
+                            "Màn hình LED",
                             "Chẩn đoán",
                             "Nhật ký"
                         ]

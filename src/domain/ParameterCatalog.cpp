@@ -89,7 +89,7 @@ QList<ChannelConfig> defaultChannels()
     const QString flueStation = QStringLiteral("KHITO1");
     const QString waterStation = QStringLiteral("NUONT1");
 
-    // Ngưỡng cố định theo dải đo nhà máy cung cấp (khí thải) và quy chuẩn (nước thải).
+    // Ngưỡng cố định theo thông tin nhà máy cung cấp.
     // Không cho sửa trên màn hình config.
     const double kLowZero = 0.0;
 
@@ -160,10 +160,10 @@ QList<ChannelConfig> defaultChannels()
                             {QStringLiteral("P")},
                             flueSource, flueStation, 2);
 
-    // Nước thải: ngưỡng theo quy chuẩn được duyệt (không phải dải đo thiết bị)
+    // Dải đo pH khác với ngưỡng đánh giá: 0–14 so với 6–9.
     channels << makeChannel(QStringLiteral("ph"), ChannelGroup::Wastewater,
                             QStringLiteral("pH"), QStringLiteral("Độ pH"),
-                            QStringLiteral("-"), QStringLiteral("6 - 9"),
+                            QStringLiteral("-"), QStringLiteral("0 - 14"),
                             true, 6.0, 9.0,
                             {QStringLiteral("-")},
                             {QStringLiteral("pH"), QStringLiteral("PH")},

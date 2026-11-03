@@ -15,7 +15,7 @@ Qt tự tạo target `caongan_led_qmllint`. Để kiểm tra riêng QML bằng k
 
 ## Preview các cảnh
 
-Chạy với `CAONGAN_LED_BASE_DIR` riêng và `--preview --simulate --scenario '<tên>'`; ví dụ `Vượt ngưỡng`, `Trong giới hạn`, `Hiệu chuẩn`, `Lỗi thiết bị`, `Bảo trì`, `Dữ liệu cũ`, `Thiếu pH`, `Sai đơn vị`, `Xung đột`, `Flow 6 chữ số`. Màn LED không có nhãn dữ liệu giả; chỉ thử trên màn tách biệt. Quan sát đủ 12 ô, dấu tiếng Việt/chỉ số hóa học, không elide giá trị và các cảnh lỗi không mang nhãn trong giới hạn. Ngưỡng ví dụ trong cảnh không được ghi cấu hình.
+Chạy `--preview` với `CAONGAN_LED_BASE_DIR` riêng và dùng simulator TT10 độc lập theo [hướng dẫn simulator](simulator.md). Màn LED không có nhãn dữ liệu giả; chỉ thử trên màn tách biệt. Quan sát đủ 12 ô, dải đo, hai badge chú giải, dấu tiếng Việt/chỉ số hóa học và các cảnh lỗi không mang màu trong giới hạn. Thử giá trị Flow 1.000.000 và các biên pH 6/9.
 
 Để thử file: chép `sample-data/inputs/` sang thư mục test riêng, cấu hình từng root bằng đường dẫn tuyệt đối và trạm mẫu. Các timestamp 2026-01-01 là cố định nên sẽ stale; không đổi giờ máy để làm chúng mới. Muốn thử dữ liệu mới, tạo file giả mới với timestamp giờ Việt Nam (UTC+7), tuyệt đối không thay nguồn thật. Snapshot và checkpoint có thể giữ trạng thái từ lần trước, vì vậy dùng base dir test mới cho mỗi thí nghiệm.
 

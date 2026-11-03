@@ -98,18 +98,32 @@ int main(int argc, char *argv[])
     QCommandLineOption previewOption(
         QStringList{QStringLiteral("preview")},
         QStringLiteral("Hiển thị LED toàn màn hình trên màn chính để kiểm tra (không cần màn LED thật)."));
-
+    QCommandLineOption simulateOption(
+        QStringList{QStringLiteral("simulate")},
+        QStringLiteral("Dữ liệu mô phỏng, chỉ dùng cùng --preview; không đọc nguồn thật."));
+    QCommandLineOption scenarioOption(
+        QStringList{QStringLiteral("scenario")},
+        QStringLiteral("Tên cảnh mô phỏng dùng với --simulate."), QStringLiteral("name"));
     QCommandLineOption verifyWindowsOption(
         QStringList{QStringLiteral("verify-preview-windows")},
         QStringLiteral("Kiểm tra hai cửa sổ preview thực sự hiển thị, rồi thoát (dành cho test)."));
     parser.addOption(configOption);
     parser.addOption(previewOption);
-
+    parser.addOption(simulateOption);
+    parser.addOption(scenarioOption);
     parser.addOption(verifyWindowsOption);
     parser.process(app);
 
     if (parser.isSet(verifyWindowsOption) && !parser.isSet(previewOption)) {
         std::fprintf(stderr, "--verify-preview-windows yêu cầu --preview.\n");
+        return 2;
+    }
+    if (parser.isSet(simulateOption) && !parser.isSet(previewOption)) {
+        std::fprintf(stderr, "--simulate yêu cầu --preview.\n");
+        return 2;
+    }
+    if (parser.isSet(scenarioOption) && !parser.isSet(simulateOption)) {
+        std::fprintf(stderr, "--scenario yêu cầu --simulate.\n");
         return 2;
     }
 
@@ -154,7 +168,8 @@ int main(int argc, char *argv[])
                      &controller, &caongan::ApplicationController::shutdown);
 
     controller.initialize(absoluteConfigPath(parser.value(configOption)),
-                          parser.isSet(previewOption));
+                          parser.isSet(previewOption), parser.isSet(simulateOption),
+                          parser.value(scenarioOption));
 
     engine.loadFromModule(QStringLiteral("CaonganLed.App"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {

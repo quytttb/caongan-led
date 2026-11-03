@@ -27,6 +27,7 @@ public:
         SourceNameRole,
         HasReadingRole,
         AgeTextRole,
+        RangeTextRole,
     };
     Q_ENUM(Roles)
 

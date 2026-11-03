@@ -7,9 +7,9 @@
 1. Mở ứng dụng **CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV** và **Cao Ngạn — Simulator** trong danh sách ứng dụng, hoặc chạy `caongan-led-preview` và `caongan-led-simulator` từ terminal.
 2. Trong Simulator, sửa 12 giá trị nếu muốn, chọn **Bình thường**, rồi bấm **Bắt đầu**. Chờ khoảng vài giây cho hai lần kiểm tra file ổn định. Hai nguồn và snapshot của bản preview được cấu hình sẵn tại `~/.local/share/caongan-led-test/`.
 3. Đổi tình huống trong Simulator; lần ghi tiếp theo áp dụng cảnh mới. **Ghi ngay** ghi một bộ, **Dừng** dừng phát; đóng cửa sổ cũng dừng. Công cụ tự dừng sau 120 lần ghi và giới hạn 1.000 file mỗi nguồn; không tự xóa file.
-4. Màn LED không tự gắn nhãn dữ liệu giả. Dùng riêng màn và cấu hình thử, không đưa thư mục test sang cấu hình thật. Không bật kịch bản nội bộ của app khi đang muốn thử file, vì chế độ đó tạm dừng nhập file.
+4. Màn LED không tự gắn nhãn dữ liệu giả. Dùng riêng màn và cấu hình thử, không đưa thư mục test sang cấu hình thật.
 
-Tình huống có sẵn: bình thường, giá trị cao, hiệu chuẩn `01`, lỗi thiết bị `02`, dữ liệu cũ, thiếu pH, PM sai đơn vị, xung đột SO₂ cùng timestamp, Flow 6 chữ số và trạng thái lạ `03`. Hai cảnh **dữ liệu cũ/thiếu pH** cố ý ngừng gửi kênh tương ứng: hãy gửi bình thường trước, chuyển cảnh rồi chờ timeout; sandbox cài sẵn dùng 15 giây. Tình huống giá trị cao chỉ hiện vượt ngưỡng nếu người thử tự cấu hình ngưỡng **thử** ở cửa sổ vận hành; ngưỡng mặc định tắt, không phải ngưỡng nhà máy.
+Tình huống có sẵn: bình thường, giá trị cao, hiệu chuẩn `01`, lỗi thiết bị `02`, dữ liệu cũ, thiếu pH, PM sai đơn vị, xung đột SO₂ cùng timestamp, Flow 6 chữ số và trạng thái lạ `03`. Hai cảnh **dữ liệu cũ/thiếu pH** cố ý ngừng gửi kênh tương ứng: hãy gửi bình thường trước, chuyển cảnh rồi chờ timeout; sandbox cài sẵn dùng 15 giây. So sánh giá trị thử với ngưỡng cố định trong catalog; không sửa ngưỡng trong cửa sổ vận hành.
 
 ## Trên Windows (không cần Python)
 

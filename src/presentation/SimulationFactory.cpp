@@ -60,11 +60,6 @@ Reading makeReading(const ChannelConfig &channel,
     return reading;
 }
 
-ChannelConfig *findChannel(AppConfig &config, const QString &id)
-{
-    return config.channelById(id);
-}
-
 } // namespace
 
 QStringList simulationScenarioNames()
@@ -91,30 +86,6 @@ QVector<ChannelState> buildSimulationStates(const AppConfig &config,
     AppConfig demo = config;
     demo.channels = orderChannels(demo.channels);
 
-    if (scenario == QStringLiteral("Vượt ngưỡng")) {
-        if (auto *so2 = findChannel(demo, QStringLiteral("so2"))) {
-            so2->threshold.enabled = true;
-            so2->threshold.hasHigh = true;
-            so2->threshold.high = 50.0;
-        }
-        if (auto *cod = findChannel(demo, QStringLiteral("cod"))) {
-            cod->threshold.enabled = true;
-            cod->threshold.hasHigh = true;
-            cod->threshold.high = 30.0;
-        }
-    } else if (scenario == QStringLiteral("Trong giới hạn")) {
-        if (auto *so2 = findChannel(demo, QStringLiteral("so2"))) {
-            so2->threshold.enabled = true;
-            so2->threshold.hasHigh = true;
-            so2->threshold.high = 200.0;
-        }
-        if (auto *cod = findChannel(demo, QStringLiteral("cod"))) {
-            cod->threshold.enabled = true;
-            cod->threshold.hasHigh = true;
-            cod->threshold.high = 100.0;
-        }
-    }
-
     LatestReadingStore store;
     store.setConfig(demo);
 
@@ -126,7 +97,13 @@ QVector<ChannelState> buildSimulationStates(const AppConfig &config,
         if (scenario == QStringLiteral("Thiếu pH") && channel.id == QLatin1String("ph"))
             continue;
 
-        const DemoValue demoValue = values.value(channel.id, {0.0, channel.decimals});
+        DemoValue demoValue = values.value(channel.id, {0.0, channel.decimals});
+        if (scenario == QStringLiteral("Vượt ngưỡng")) {
+            if (channel.id == QLatin1String("so2"))
+                demoValue.value = 1001.0;
+            else if (channel.id == QLatin1String("cod"))
+                demoValue.value = 83.0;
+        }
         QDateTime measured = freshTime;
         DeviceStatus status = DeviceStatus::Measuring;
         QString unitOverride;

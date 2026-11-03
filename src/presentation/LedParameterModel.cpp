@@ -27,6 +27,7 @@ QVariant LedParameterModel::data(const QModelIndex &index, int role) const
     case SymbolRole:        return state.config.symbol;
     case DisplayNameRole:   return state.config.displayName;
     case UnitRole:          return state.config.unit;
+    case RangeTextRole:     return state.config.rangeText;
     case GroupRole:         return channelGroupId(state.config.group);
     case GroupTitleRole:    return channelGroupTitle(state.config.group);
     case ValueTextRole:     return state.valueText;
@@ -57,6 +58,7 @@ QHash<int, QByteArray> LedParameterModel::roleNames() const
         {SymbolRole, "symbol"},
         {DisplayNameRole, "displayName"},
         {UnitRole, "unit"},
+        {RangeTextRole, "rangeText"},
         {GroupRole, "group"},
         {GroupTitleRole, "groupTitle"},
         {ValueTextRole, "valueText"},

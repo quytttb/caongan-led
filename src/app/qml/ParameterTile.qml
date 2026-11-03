@@ -2,11 +2,12 @@ import QtQuick
 
 Item {
     id: root
-    width: 456
-    height: 238
+    width: 381
+    height: 195
 
     property string symbol: ""
     property string unit: ""
+    property string rangeText: ""
     property string valueText: "—"
     property string statusText: "CHƯA CÓ DỮ LIỆU"
     property string stateKey: "noData"
@@ -15,13 +16,12 @@ Item {
 
     function accentFor(key) {
         switch (key) {
-        case "measuring":
         case "withinLimit":
             return "#00E5FF"
         case "exceedsLimit":
+            return "#FF5252"
         case "deviceFault":
         case "conflict":
-            return "#FF5252"
         case "calibrating":
         case "maintenance":
         case "unitMismatch":
@@ -46,12 +46,12 @@ Item {
 
     Text {
         id: symbolText
-        x: 20
-        y: 8
+        x: 14
+        y: 4
         text: root.symbol
         color: "#FFFFFF"
         font.family: "Inter"
-        font.pixelSize: 44
+        font.pixelSize: 34
         font.bold: true
         renderType: Text.NativeRendering
     }
@@ -59,13 +59,13 @@ Item {
     Text {
         id: unitText
         anchors.right: parent.right
-        anchors.rightMargin: 20
-        y: 20
-        width: 180
+        anchors.rightMargin: 14
+        y: 10
+        width: 160
         text: root.unit
         color: "#FFFFFF"
         font.family: "Inter"
-        font.pixelSize: 30
+        font.pixelSize: 24
         horizontalAlignment: Text.AlignRight
         elide: Text.ElideRight
         renderType: Text.NativeRendering
@@ -74,41 +74,60 @@ Item {
     Text {
         id: valueText
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 62
-        width: parent.width - 32
-        height: 110
+        objectName: "readingValue"
+        y: 43
+        width: parent.width - 24
+        height: 72
         text: root.valueText
         color: root.accentFor(root.stateKey)
         font.family: "Inter"
-        font.pixelSize: 112
+        font.pixelSize: 82
         font.bold: true
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         fontSizeMode: Text.Fit
-        minimumPixelSize: 80
+        minimumPixelSize: 32
+        renderType: Text.NativeRendering
+    }
+
+    Text {
+        objectName: "measurementRange"
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 118
+        width: parent.width - 24
+        height: 27
+        text: root.rangeText.length ? "(" + root.rangeText + ")" : ""
+        color: "#FFFFFF"
+        font.family: "Inter"
+        font.pixelSize: 24
+        minimumPixelSize: 14
+        fontSizeMode: Text.Fit
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
         renderType: Text.NativeRendering
     }
 
     LedStatusLabel {
+        objectName: "tileStatus"
         anchors.horizontalCenter: parent.horizontalCenter
-        y: parent.height - 52
-        stateKey: root.stateKey === "withinLimit" || root.stateKey === "exceedsLimit" ? "measuring" : root.stateKey
-        text: root.stateKey === "withinLimit" || root.stateKey === "exceedsLimit" ? "ĐANG ĐO" : root.statusText
-        fontSize: 30
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 7
+        height: 32
+        stateKey: root.stateKey
+        text: {
+            switch (root.stateKey) {
+            case "withinLimit":
+            case "measuring": return "ĐANG ĐO"
+            case "exceedsLimit": return "ĐANG ĐO · VƯỢT NGƯỠNG"
+            case "deviceFault": return "LỖI THIẾT BỊ"
+            case "futureTimestamp": return "SAI GIỜ ĐO"
+            case "invalid": return "DỮ LIỆU LỖI"
+            case "conflict": return "XUNG ĐỘT"
+            case "unknownStatus": return "LỖI TRẠNG THÁI"
+            default: return root.statusText
+            }
+        }
+        fontSize: 22
         maximumWidth: parent.width - 24
-    }
-
-    Text {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 175
-        width: parent.width - 24
-        text: "VƯỢT NGƯỠNG"
-        visible: root.stateKey === "exceedsLimit"
-        color: "#FF7070"
-        font.family: "Inter"
-        font.pixelSize: 23
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        renderType: Text.NativeRendering
     }
 }

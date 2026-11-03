@@ -86,8 +86,8 @@ struct BrandingConfig {
 struct DisplayConfig {
     QString targetScreenName;
     bool fullScreen = true;
-    int designWidth = 1920;
-    int designHeight = 1152;
+    int designWidth = 1600;
+    int designHeight = 960;
 };
 
 struct StorageConfig {

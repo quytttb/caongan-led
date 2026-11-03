@@ -18,13 +18,12 @@ Rectangle {
 
     function foregroundFor(key) {
         switch (key) {
-        case "measuring":
         case "withinLimit":
             return "#00E5FF"
         case "exceedsLimit":
+            return "#FF5252"
         case "deviceFault":
         case "conflict":
-            return "#FF5252"
         case "calibrating":
         case "maintenance":
         case "unitMismatch":
@@ -50,7 +49,7 @@ Rectangle {
         font.bold: true
         horizontalAlignment: Text.AlignHCenter
         fontSizeMode: Text.Fit
-        minimumPixelSize: 22
+        minimumPixelSize: 16
         renderType: Text.NativeRendering
     }
 }

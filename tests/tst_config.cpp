@@ -1,5 +1,6 @@
 #include "domain/ConfigCodec.h"
 #include "domain/ParameterCatalog.h"
+#include "domain/ThresholdEvaluator.h"
 #include "storage/ConfigStore.h"
 #include "utils/AppPaths.h"
 
@@ -62,6 +63,10 @@ private slots:
     void stationMismatchRejected();
     void duplicateAliasRejected();
     void thresholdValidation();
+    void fixedThresholds_data();
+    void fixedThresholds();
+    void oldDisplayConfigMigrates();
+    void incompatibleThresholdUnitRejected();
     void displaySizeValidation();
     void duplicateSourceRejected();
     void decimalsValidation();
@@ -238,6 +243,89 @@ void TestConfig::thresholdValidation()
     QCOMPARE(ph->threshold.low, 6.0);
     QCOMPARE(ph->threshold.high, 9.0);
     QVERIFY(validateConfig(config).isEmpty());
+}
+
+void TestConfig::fixedThresholds_data()
+{
+    QTest::addColumn<QString>("id");
+    QTest::addColumn<double>("low");
+    QTest::addColumn<double>("high");
+    QTest::addColumn<QString>("range");
+    QTest::newRow("O2") << QStringLiteral("o2") << 0.0 << 25.0 << QStringLiteral("0 - 25 %V");
+    QTest::newRow("CO") << QStringLiteral("co") << 0.0 << 1500.0 << QStringLiteral("0 - 1.500 mg/Nm³");
+    QTest::newRow("NOx") << QStringLiteral("nox") << 0.0 << 1500.0 << QStringLiteral("0 - 1.500 mg/Nm³");
+    QTest::newRow("SO2") << QStringLiteral("so2") << 0.0 << 1000.0 << QStringLiteral("0 - 1.000 mg/Nm³");
+    QTest::newRow("PM") << QStringLiteral("pm") << 0.0 << 1000.0 << QStringLiteral("0 - 1.000 mg/Nm³");
+    QTest::newRow("Temp") << QStringLiteral("temp_flue") << 0.0 << 500.0 << QStringLiteral("0 - 500 °C");
+    QTest::newRow("Flow") << QStringLiteral("flow_flue") << 0.0 << 1000000.0 << QStringLiteral("0 - 1.000.000 m³/h");
+    QTest::newRow("P") << QStringLiteral("pressure_flue") << 0.0 << 160.0 << QStringLiteral("0 - 160 kPa");
+    QTest::newRow("pH") << QStringLiteral("ph") << 6.0 << 9.0 << QStringLiteral("0 - 14");
+    QTest::newRow("TSS") << QStringLiteral("tss") << 0.0 << 55.0 << QStringLiteral("0 - 55 mg/L");
+    QTest::newRow("COD") << QStringLiteral("cod") << 0.0 << 82.5 << QStringLiteral("0 - 82,5 mg/L");
+    QTest::newRow("NH4") << QStringLiteral("nh4") << 0.0 << 5.5 << QStringLiteral("0 - 5,5 mg/L");
+}
+
+void TestConfig::fixedThresholds()
+{
+    QFETCH(QString, id);
+    QFETCH(double, low);
+    QFETCH(double, high);
+    QFETCH(QString, range);
+    const AppConfig config = defaultAppConfig();
+    const ChannelConfig *channel = config.channelById(id);
+    QVERIFY(channel);
+    QVERIFY(channel->threshold.configured());
+    QCOMPARE(channel->rangeText, range);
+    QCOMPARE(channel->threshold.low, low);
+    QCOMPARE(channel->threshold.high, high);
+    Reading reading;
+    reading.deviceStatus = DeviceStatus::Measuring;
+    reading.unit = channel->unit;
+    auto evaluate = [&](double value) {
+        reading.value = value;
+        return evaluateThreshold(*channel, reading, Validity::Valid, Freshness::Fresh, false);
+    };
+    QCOMPARE(evaluate(low), ThresholdResult::WithinConfiguredLimit);
+    QCOMPARE(evaluate(high), ThresholdResult::WithinConfiguredLimit);
+    QCOMPARE(evaluate(low - 0.01), ThresholdResult::ExceedsConfiguredLimit);
+    QCOMPARE(evaluate(high + 0.01), ThresholdResult::ExceedsConfiguredLimit);
+}
+
+void TestConfig::oldDisplayConfigMigrates()
+{
+    for (const int oldHeight : {1200, 1152, 960}) {
+        QJsonObject json = configToJson(defaultAppConfig());
+        QJsonObject display = json.value(QStringLiteral("display")).toObject();
+        display.insert(QStringLiteral("designWidth"), 1920);
+        display.insert(QStringLiteral("designHeight"), oldHeight);
+        display.insert(QStringLiteral("targetScreenName"), QStringLiteral("LED-1"));
+        json.insert(QStringLiteral("display"), display);
+        QJsonArray channels = json.value(QStringLiteral("channels")).toArray();
+        QJsonObject co = channels.at(1).toObject();
+        co.insert(QStringLiteral("threshold"), QJsonObject{{QStringLiteral("enabled"), false},
+                                                            {QStringLiteral("high"), 3}});
+        channels.replace(1, co);
+        json.insert(QStringLiteral("channels"), channels);
+        AppConfig parsed;
+        QVERIFY(configFromJson(json, parsed));
+        QCOMPARE(parsed.display.designWidth, 1600);
+        QCOMPARE(parsed.display.designHeight, 960);
+        QCOMPARE(parsed.display.targetScreenName, QStringLiteral("LED-1"));
+        QVERIFY(parsed.channelById(QStringLiteral("co"))->threshold.enabled);
+        QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.high, 1500.0);
+        QVERIFY(validateConfig(parsed).isEmpty());
+    }
+}
+
+void TestConfig::incompatibleThresholdUnitRejected()
+{
+    AppConfig config = defaultAppConfig();
+    ChannelConfig *pm = config.channelById(QStringLiteral("pm"));
+    QVERIFY(pm);
+    pm->acceptedUnits.append(QStringLiteral("mg/m³"));
+    QVERIFY(hasIssueField(validateConfig(config), QStringLiteral("channels.pm.acceptedUnits")));
+    pm->unit = QStringLiteral("mg/m³");
+    QVERIFY(hasIssueField(validateConfig(config), QStringLiteral("channels.pm.unit")));
 }
 
 void TestConfig::displaySizeValidation()

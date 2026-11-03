@@ -3,13 +3,11 @@
  "branding": {
   "address": "Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên",
   "branchName": "CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP",
-  "companyName": "CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV",
-  "footerNote": "",
-  "regulationText": ""
+  "companyName": "CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV"
  },
  "display": {
-  "designHeight": 1152,
-  "designWidth": 1920,
+  "designHeight": 960,
+  "designWidth": 1600,
   "fullScreen": true,
   "targetScreenName": ""
  },
