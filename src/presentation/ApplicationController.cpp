@@ -92,9 +92,7 @@ ApplicationController::~ApplicationController()
 }
 
 void ApplicationController::initialize(const QString &configPathOverride,
-                                       bool previewMode,
-                                       bool simulate,
-                                       const QString &scenario)
+                                       bool previewMode)
 {
     if (m_initialized)
         return;
@@ -120,9 +118,6 @@ void ApplicationController::initialize(const QString &configPathOverride,
     startIngestion();
     updateWindowVisibility();
     updateStatusSummary();
-
-    if (simulate)
-        setSimulation(true, scenario.isEmpty() ? simulationScenarioNames().value(0) : scenario);
 }
 
 void ApplicationController::shutdown()
@@ -261,10 +256,7 @@ QString ApplicationController::commitConfiguration(const AppConfig &next, bool r
     emit configChanged();
 
     if (reloadIngestion) {
-        if (m_simulationActive)
-            applySimulationScenario(m_simulationScenario);
-        else
-            sendConfigToIngestion();
+        sendConfigToIngestion();
     }
     updateWindowVisibility();
     updateStatusSummary();
@@ -277,8 +269,6 @@ QVariantMap ApplicationController::branding() const
     map.insert(QStringLiteral("companyName"), m_config.branding.companyName);
     map.insert(QStringLiteral("branchName"), m_config.branding.branchName);
     map.insert(QStringLiteral("address"), m_config.branding.address);
-    map.insert(QStringLiteral("regulationText"), m_config.branding.regulationText);
-    map.insert(QStringLiteral("footerNote"), m_config.branding.footerNote);
     return map;
 }
 
@@ -317,12 +307,12 @@ QVariantList ApplicationController::channelSettings() const
                    m_config.sourceById(channel.sourceId)
                        ? m_config.sourceById(channel.sourceId)->name
                        : QString());
-        map.insert(QStringLiteral("thresholdEnabled"), channel.threshold.enabled);
-        map.insert(QStringLiteral("lowText"),
+        map.insert(QStringLiteral("rangeText"), channel.rangeText);
+        map.insert(QStringLiteral("thresholdLow"),
                    channel.threshold.hasLow
                        ? formatReadingValue(channel.threshold.low, channel.decimals)
                        : QString());
-        map.insert(QStringLiteral("highText"),
+        map.insert(QStringLiteral("thresholdHigh"),
                    channel.threshold.hasHigh
                        ? formatReadingValue(channel.threshold.high, channel.decimals)
                        : QString());
@@ -383,11 +373,6 @@ bool ApplicationController::positionLedWindow(QWindow *window) const
     window->setScreen(screen);
     window->setPosition(screen->geometry().topLeft());
     return true;
-}
-
-QStringList ApplicationController::simulationScenarios() const
-{
-    return simulationScenarioNames();
 }
 
 QString ApplicationController::configPath() const
@@ -455,120 +440,6 @@ QString ApplicationController::updateSource(const QString &id,
     return commitConfiguration(next, true);
 }
 
-QString ApplicationController::parseOptionalNumber(const QString &text, bool *present, double *value) const
-{
-    const QString trimmed = text.trimmed();
-    *present = !trimmed.isEmpty();
-    if (!*present)
-        return {};
-    if (!parseStrictNumber(trimmed, value))
-        return QStringLiteral("Giá trị không phải số hợp lệ: %1").arg(trimmed);
-    return {};
-}
-
-QString ApplicationController::buildThreshold(bool enabled,
-                                              const QString &lowText,
-                                              const QString &highText,
-                                              Threshold *threshold) const
-{
-    if (!threshold)
-        return QStringLiteral("Lỗi nội bộ: thiếu đích ngưỡng");
-
-    Threshold built;
-    built.enabled = enabled;
-    if (enabled) {
-        bool hasLow = false;
-        bool hasHigh = false;
-        double low = 0.0;
-        double high = 0.0;
-        const QString lowError = parseOptionalNumber(lowText, &hasLow, &low);
-        if (!lowError.isEmpty())
-            return lowError;
-        const QString highError = parseOptionalNumber(highText, &hasHigh, &high);
-        if (!highError.isEmpty())
-            return highError;
-        if (!hasLow && !hasHigh)
-            return QStringLiteral("Ngưỡng đang bật nhưng chưa nhập cận dưới/cận trên");
-        if (hasLow && hasHigh && low > high)
-            return QStringLiteral("Ngưỡng dưới lớn hơn ngưỡng trên");
-        built.hasLow = hasLow;
-        built.hasHigh = hasHigh;
-        built.low = low;
-        built.high = high;
-    }
-    *threshold = built;
-    return {};
-}
-
-QString ApplicationController::updateChannelThreshold(const QString &id,
-                                                      bool enabled,
-                                                      const QString &lowText,
-                                                      const QString &highText)
-{
-    AppConfig next = m_config;
-    ChannelConfig *channel = next.channelById(id);
-    if (!channel)
-        return QStringLiteral("Không tìm thấy kênh %1").arg(id);
-
-    Threshold threshold;
-    const QString error = buildThreshold(enabled, lowText, highText, &threshold);
-    if (!error.isEmpty())
-        return error;
-    channel->threshold = threshold;
-    return commitConfiguration(next, true);
-}
-
-QString ApplicationController::updateChannelDecimals(const QString &id, int decimals)
-{
-    if (decimals < 0 || decimals > 6)
-        return QStringLiteral("Số chữ số thập phân phải trong 0..6");
-    AppConfig next = m_config;
-    ChannelConfig *channel = next.channelById(id);
-    if (!channel)
-        return QStringLiteral("Không tìm thấy kênh %1").arg(id);
-    channel->decimals = decimals;
-    return commitConfiguration(next, true);
-}
-
-QString ApplicationController::updateChannelSettings(const QString &id,
-                                                     int decimals,
-                                                     bool thresholdEnabled,
-                                                     const QString &lowText,
-                                                     const QString &highText)
-{
-    if (decimals < 0 || decimals > 6)
-        return QStringLiteral("Số chữ số thập phân phải trong 0..6");
-
-    AppConfig next = m_config;
-    ChannelConfig *channel = next.channelById(id);
-    if (!channel)
-        return QStringLiteral("Không tìm thấy kênh %1").arg(id);
-
-    Threshold threshold;
-    const QString error = buildThreshold(thresholdEnabled, lowText, highText, &threshold);
-    if (!error.isEmpty())
-        return error;
-
-    channel->decimals = decimals;
-    channel->threshold = threshold;
-    return commitConfiguration(next, true);
-}
-
-QString ApplicationController::updateBranding(const QString &companyName,
-                                              const QString &branchName,
-                                              const QString &address,
-                                              const QString &regulationText,
-                                              const QString &footerNote)
-{
-    AppConfig next = m_config;
-    next.branding.companyName = companyName.trimmed();
-    next.branding.branchName = branchName.trimmed();
-    next.branding.address = address.trimmed();
-    next.branding.regulationText = regulationText.trimmed();
-    next.branding.footerNote = footerNote.trimmed();
-    return commitConfiguration(next, false);
-}
-
 QString ApplicationController::updateTargetScreen(const QString &name)
 {
     const QString target = name.trimmed();
@@ -592,8 +463,6 @@ QString ApplicationController::reloadConfiguration()
     m_ledModel->setConfig(m_config);
     updateWindowVisibility();
     sendConfigToIngestion();
-    if (m_simulationActive)
-        applySimulationScenario(m_simulationScenario);
     emit configChanged();
     if (!ok)
         return m_configError;
@@ -607,63 +476,6 @@ void ApplicationController::requestRescan()
     IngestionService *service = m_ingestion;
     QMetaObject::invokeMethod(m_ingestion, [service]() { service->requestRescan(); },
                               Qt::QueuedConnection);
-}
-
-void ApplicationController::setSimulation(bool active, const QString &scenario)
-{
-    if (!active) {
-        if (!m_simulationActive)
-            return;
-        qInfo() << "[controller] Kết thúc mô phỏng, tiếp tục nhập nguồn";
-        m_simulationActive = false;
-        m_simulationScenario.clear();
-        m_ledModel->setConfig(m_config);
-        m_lastStates.clear();
-        m_exhaustCaption = QStringLiteral("Chưa có mốc đo");
-        m_wastewaterCaption = QStringLiteral("Chưa có mốc đo");
-        updateStatusSummary();
-        emit simulationChanged();
-        emit statesChanged();
-
-        if (m_ingestion) {
-            IngestionService *service = m_ingestion;
-            QMetaObject::invokeMethod(m_ingestion, [service]() {
-                service->setPaused(false);
-                service->requestRescan();
-            }, Qt::QueuedConnection);
-        }
-        return;
-    }
-
-    const QStringList names = simulationScenarioNames();
-    const QString chosen = names.contains(scenario) ? scenario : names.value(0);
-    qInfo() << "[controller] Bắt đầu kịch bản mô phỏng" << chosen << "; tạm dừng nhập nguồn";
-    m_simulationActive = true;
-    m_simulationScenario = chosen;
-
-    if (m_ingestion) {
-        IngestionService *service = m_ingestion;
-        QMetaObject::invokeMethod(m_ingestion, [service]() { service->setPaused(true); },
-                                  Qt::QueuedConnection);
-    }
-
-    const QVector<ChannelState> states = buildSimulationStates(
-        m_config, chosen, tt10::nowUtc());
-    m_lastStates = states;
-    m_ledModel->setStates(states);
-    recomputeCaptions(states);
-    updateStatusSummary();
-    emit simulationChanged();
-    emit statesChanged();
-}
-
-void ApplicationController::applySimulationScenario(const QString &scenario)
-{
-    if (!m_simulationActive) {
-        setSimulation(true, scenario);
-        return;
-    }
-    setSimulation(true, scenario);
 }
 
 void ApplicationController::clearDiagnostics()
@@ -807,8 +619,6 @@ void ApplicationController::quit()
 
 void ApplicationController::onChannelsChanged(const QVector<caongan::ChannelState> &states)
 {
-    if (m_simulationActive)
-        return;
     m_lastStates = states;
     m_ledModel->setStates(states);
     recomputeCaptions(states);
@@ -885,9 +695,7 @@ void ApplicationController::updateWindowVisibility()
 void ApplicationController::updateStatusSummary()
 {
     QString summary;
-    if (m_simulationActive) {
-        summary = QStringLiteral("Đã tạm dừng nhập nguồn");
-    } else if (m_config.sources.isEmpty()) {
+    if (m_config.sources.isEmpty()) {
         summary = QStringLiteral("Chưa cấu hình nguồn dữ liệu");
     } else {
         int online = 0;

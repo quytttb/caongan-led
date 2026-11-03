@@ -59,7 +59,7 @@ void TestPresentation::simulationStates()
     QCOMPARE(stateFor(QStringLiteral("Sai đơn vị"), QStringLiteral("pm")).display, DisplayState::UnitMismatch);
     QCOMPARE(stateFor(QStringLiteral("Xung đột"), QStringLiteral("so2")).display, DisplayState::Conflict);
     QCOMPARE(stateFor(QStringLiteral("Flow 6 chữ số"), QStringLiteral("flow_flue")).valueText, QStringLiteral("538964"));
-    QVERIFY(!config.channelById(QStringLiteral("so2"))->threshold.enabled);
+    QVERIFY(config.channelById(QStringLiteral("so2"))->threshold.enabled);
 }
 
 void TestPresentation::screenPlacement()
@@ -70,7 +70,7 @@ void TestPresentation::screenPlacement()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath("config.json"), false, false, {});
+    controller.initialize(temp.filePath("config.json"), false);
     QWindow window;
     QVERIFY(!controller.positionLedWindow(nullptr));
     QVERIFY(!controller.positionLedWindow(&window));
@@ -105,7 +105,7 @@ void TestPresentation::previewNeedsNoTarget()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath("config.json"), true, false, {});
+    controller.initialize(temp.filePath("config.json"), true);
     QWindow window;
     QVERIFY(controller.ledWindowVisible());
     QVERIFY(controller.positionLedWindow(&window));
@@ -175,7 +175,7 @@ void TestPresentation::logViewCopyAndExport()
     LedParameterModel configuredLed;
     DiagnosticsModel configuredDiagnostics;
     ApplicationController configured(&configuredLed, &configuredDiagnostics);
-    configured.initialize(configPath, true, false, {});
+    configured.initialize(configPath, true);
     QCOMPARE(configured.refreshLogFiles(), QString());
     QVERIFY(!configured.exportLog(QUrl::fromLocalFile(customDir + QStringLiteral("/active.json"))).isEmpty());
     QVERIFY(!configured.exportLog(QUrl::fromLocalFile(customDir + QStringLiteral("/active.json.backup"))).isEmpty());

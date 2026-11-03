@@ -54,7 +54,7 @@ set_tests_properties(tst_app_version PROPERTIES
 )
 
 add_test(NAME tst_qml_windows COMMAND $<TARGET_FILE:caongan_led>
-    --preview --simulate --verify-preview-windows)
+    --preview --verify-preview-windows)
 set_tests_properties(tst_qml_windows PROPERTIES
     TIMEOUT 20
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/qml-window-test"

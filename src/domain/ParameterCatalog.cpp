@@ -13,6 +13,10 @@ ChannelConfig makeChannel(const QString &id,
                           const QString &symbol,
                           const QString &displayName,
                           const QString &unit,
+                          const QString &rangeText,
+                          bool thresholdEnabled,
+                          double thresholdLow,
+                          double thresholdHigh,
                           const QStringList &acceptedUnits,
                           const QStringList &aliases,
                           const QString &sourceId,
@@ -25,11 +29,17 @@ ChannelConfig makeChannel(const QString &id,
     channel.symbol = symbol;
     channel.displayName = displayName;
     channel.unit = unit;
+    channel.rangeText = rangeText;
     channel.acceptedUnits = acceptedUnits;
     channel.aliases = aliases;
     channel.sourceId = sourceId;
     channel.stationCode = stationCode;
     channel.decimals = decimals;
+    channel.threshold.enabled = thresholdEnabled;
+    channel.threshold.hasLow = true;
+    channel.threshold.low = thresholdLow;
+    channel.threshold.hasHigh = true;
+    channel.threshold.high = thresholdHigh;
     return channel;
 }
 
@@ -79,80 +89,107 @@ QList<ChannelConfig> defaultChannels()
     const QString flueStation = QStringLiteral("KHITO1");
     const QString waterStation = QStringLiteral("NUONT1");
 
+    // Ngưỡng cố định theo dải đo nhà máy cung cấp (khí thải) và quy chuẩn (nước thải).
+    // Không cho sửa trên màn hình config.
+    const double kLowZero = 0.0;
+
     QList<ChannelConfig> channels;
 
+    // Khí thải: ngưỡng bằng dải đo
     channels << makeChannel(QStringLiteral("o2"), ChannelGroup::Exhaust,
                             QStringLiteral("O₂"), QStringLiteral("Oxy"),
-                            QStringLiteral("%V"), {QStringLiteral("%V"), QStringLiteral("%")},
+                            QStringLiteral("%V"), QStringLiteral("0 - 25 %V"),
+                            true, kLowZero, 25.0,
+                            {QStringLiteral("%V"), QStringLiteral("%")},
                             {QStringLiteral("O2"), QStringLiteral("O₂")},
                             flueSource, flueStation, 1);
 
     channels << makeChannel(QStringLiteral("co"), ChannelGroup::Exhaust,
                             QStringLiteral("CO"), QStringLiteral("Cacbon monoxit"),
-                            QStringLiteral("mg/Nm³"), {QStringLiteral("mg/Nm³")},
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.500 mg/Nm³"),
+                            true, kLowZero, 1500.0,
+                            {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("CO")},
                             flueSource, flueStation, 1);
 
     channels << makeChannel(QStringLiteral("nox"), ChannelGroup::Exhaust,
                             QStringLiteral("NOₓ"), QStringLiteral("Nitơ oxit"),
-                            QStringLiteral("mg/Nm³"), {QStringLiteral("mg/Nm³")},
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.500 mg/Nm³"),
+                            true, kLowZero, 1500.0,
+                            {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("NOx"), QStringLiteral("NOX"), QStringLiteral("NOₓ")},
                             flueSource, flueStation, 1);
 
     channels << makeChannel(QStringLiteral("so2"), ChannelGroup::Exhaust,
                             QStringLiteral("SO₂"), QStringLiteral("Lưu huỳnh đioxit"),
-                            QStringLiteral("mg/Nm³"), {QStringLiteral("mg/Nm³")},
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.000 mg/Nm³"),
+                            true, kLowZero, 1000.0,
+                            {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("SO2"), QStringLiteral("SO₂")},
                             flueSource, flueStation, 1);
 
-    // PM: hồ sơ PDF ghi mg/m³ còn TT10/legacy ghi mg/Nm³ — chưa chốt cơ sở đo.
-    // Chỉ nhận đúng cơ sở TT10 để sai đơn vị hiện "SAI ĐƠN VỊ" thay vì đổi nhãn ngầm.
     channels << makeChannel(QStringLiteral("pm"), ChannelGroup::Exhaust,
                             QStringLiteral("PM"), QStringLiteral("Bụi"),
-                            QStringLiteral("mg/Nm³"), {QStringLiteral("mg/Nm³")},
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.000 mg/Nm³"),
+                            true, kLowZero, 1000.0,
+                            {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("PM")},
                             flueSource, flueStation, 1);
 
     channels << makeChannel(QStringLiteral("temp_flue"), ChannelGroup::Exhaust,
                             QStringLiteral("Temp"), QStringLiteral("Nhiệt độ khí thải"),
-                            QStringLiteral("°C"), {QStringLiteral("°C")},
+                            QStringLiteral("°C"), QStringLiteral("0 - 500 °C"),
+                            true, kLowZero, 500.0,
+                            {QStringLiteral("°C")},
                             {QStringLiteral("Temp"), QStringLiteral("TEMP")},
                             flueSource, flueStation, 1);
 
     channels << makeChannel(QStringLiteral("flow_flue"), ChannelGroup::Exhaust,
                             QStringLiteral("Flow"), QStringLiteral("Lưu lượng khí"),
-                            QStringLiteral("m³/h"), {QStringLiteral("m³/h")},
+                            QStringLiteral("m³/h"), QStringLiteral("0 - 1.000.000 m³/h"),
+                            true, kLowZero, 1000000.0,
+                            {QStringLiteral("m³/h")},
                             {QStringLiteral("Flow")},
                             flueSource, flueStation, 0);
 
     channels << makeChannel(QStringLiteral("pressure_flue"), ChannelGroup::Exhaust,
                             QStringLiteral("P"), QStringLiteral("Áp suất"),
-                            QStringLiteral("kPa"), {QStringLiteral("kPa")},
+                            QStringLiteral("kPa"), QStringLiteral("0 - 160 kPa"),
+                            true, kLowZero, 160.0,
+                            {QStringLiteral("kPa")},
                             {QStringLiteral("P")},
                             flueSource, flueStation, 2);
 
+    // Nước thải: ngưỡng theo quy chuẩn được duyệt (không phải dải đo thiết bị)
     channels << makeChannel(QStringLiteral("ph"), ChannelGroup::Wastewater,
                             QStringLiteral("pH"), QStringLiteral("Độ pH"),
-                            QStringLiteral("-"), {QStringLiteral("-")},
+                            QStringLiteral("-"), QStringLiteral("6 - 9"),
+                            true, 6.0, 9.0,
+                            {QStringLiteral("-")},
                             {QStringLiteral("pH"), QStringLiteral("PH")},
                             waterSource, waterStation, 1);
 
     channels << makeChannel(QStringLiteral("tss"), ChannelGroup::Wastewater,
                             QStringLiteral("TSS"), QStringLiteral("Chất rắn lơ lửng"),
-                            QStringLiteral("mg/L"), {QStringLiteral("mg/L")},
+                            QStringLiteral("mg/L"), QStringLiteral("0 - 55 mg/L"),
+                            true, kLowZero, 55.0,
+                            {QStringLiteral("mg/L")},
                             {QStringLiteral("TSS")},
                             waterSource, waterStation, 1);
 
     channels << makeChannel(QStringLiteral("cod"), ChannelGroup::Wastewater,
                             QStringLiteral("COD"), QStringLiteral("Nhu cầu oxy hóa học"),
-                            QStringLiteral("mg/L"), {QStringLiteral("mg/L")},
+                            QStringLiteral("mg/L"), QStringLiteral("0 - 82,5 mg/L"),
+                            true, kLowZero, 82.5,
+                            {QStringLiteral("mg/L")},
                             {QStringLiteral("COD")},
                             waterSource, waterStation, 1);
 
-    // Không nhận NH4-N: đó là cơ sở báo cáo khác, chỉ quy đổi khi có phê duyệt.
     channels << makeChannel(QStringLiteral("nh4"), ChannelGroup::Wastewater,
                             QStringLiteral("NH₄⁺"), QStringLiteral("Amoni"),
-                            QStringLiteral("mg/L"), {QStringLiteral("mg/L")},
+                            QStringLiteral("mg/L"), QStringLiteral("0 - 5,5 mg/L"),
+                            true, kLowZero, 5.5,
+                            {QStringLiteral("mg/L")},
                             {QStringLiteral("NH4+"), QStringLiteral("NH₄⁺"),
                              QStringLiteral("NH4"), QStringLiteral("NH₄")},
                             waterSource, waterStation, 2);
@@ -169,8 +206,6 @@ AppConfig defaultAppConfig()
         QStringLiteral("CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP");
     config.branding.address =
         QStringLiteral("Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
-    config.branding.regulationText.clear();
-    config.branding.footerNote.clear();
     config.sources = defaultSources();
     config.channels = defaultChannels();
     return config;

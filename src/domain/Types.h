@@ -81,15 +81,13 @@ struct BrandingConfig {
     QString companyName;
     QString branchName;
     QString address;
-    QString regulationText;
-    QString footerNote;
 };
 
 struct DisplayConfig {
     QString targetScreenName;
     bool fullScreen = true;
     int designWidth = 1920;
-    int designHeight = 1200;
+    int designHeight = 1152;
 };
 
 struct StorageConfig {
@@ -119,12 +117,13 @@ struct ChannelConfig {
     QString symbol;
     QString displayName;
     QString unit;
+    QString rangeText;         // Dải đo hiển thị dưới giá trị (ví dụ "0 - 25 %V"), cố định, không sửa.
     QStringList acceptedUnits;
     QStringList aliases;
     QString sourceId;
     QString stationCode;
     int decimals = 1;
-    Threshold threshold;
+    Threshold threshold;       // Ngưỡng cố định theo dải đo / quy chuẩn, không cho sửa tại chỗ.
     int staleAfterSeconds = 900;
 };
 

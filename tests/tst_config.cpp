@@ -102,7 +102,7 @@ void TestConfig::defaultsAreValidAndOrdered()
     QCOMPARE(config.channels.at(0).group, ChannelGroup::Exhaust);
     QCOMPARE(config.channels.at(8).group, ChannelGroup::Wastewater);
     QCOMPARE(config.channels.at(4).unit, QStringLiteral("mg/Nm³"));
-    QVERIFY(!config.channels.at(0).threshold.enabled);
+    QVERIFY(config.channels.at(0).threshold.enabled);
     QVERIFY(!unitAccepted(config.channels.at(4), QStringLiteral("mg/m³")));
 }
 
@@ -128,17 +128,9 @@ void TestConfig::jsonRoundTrip()
 {
     AppConfig config = defaultAppConfig();
     config.branding.companyName = QStringLiteral("Công ty thử nghiệm");
-    config.branding.footerNote = QStringLiteral("Ghi chú");
     config.display.targetScreenName = QStringLiteral("LED-1");
     config.display.fullScreen = false;
     config.sources[0].folder = QStringLiteral("/tmp/khong-gui");
-    ChannelConfig *co = config.channelById(QStringLiteral("co"));
-    QVERIFY(co);
-    co->threshold.enabled = true;
-    co->threshold.hasLow = true;
-    co->threshold.low = 5.0;
-    co->threshold.hasHigh = true;
-    co->threshold.high = 10.0;
 
     const QJsonObject original = configToJson(config);
     AppConfig parsed;
@@ -148,7 +140,12 @@ void TestConfig::jsonRoundTrip()
     QCOMPARE(configToJson(parsed), original);
     QCOMPARE(parsed.display.targetScreenName, QStringLiteral("LED-1"));
     QVERIFY(!parsed.display.fullScreen);
-    QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.high, 10.0);
+    // Ngưỡng và dải đo cố định: đọc lại luôn ép về danh mục chuẩn.
+    ChannelConfig *parsedCo = parsed.channelById(QStringLiteral("co"));
+    QVERIFY(parsedCo);
+    QVERIFY(parsedCo->threshold.enabled);
+    QCOMPARE(parsedCo->threshold.high, 1500.0);
+    QVERIFY(!parsedCo->rangeText.isEmpty());
 }
 
 void TestConfig::schemaVersionRejected()
@@ -226,20 +223,20 @@ void TestConfig::duplicateAliasRejected()
 
 void TestConfig::thresholdValidation()
 {
-    AppConfig config = defaultAppConfig();
-    ChannelConfig *co = config.channelById(QStringLiteral("co"));
+    // Ngưỡng đã cố định theo nhà máy, không còn validate bật/tắt hay nhập cận.
+    const AppConfig config = defaultAppConfig();
+    const ChannelConfig *co = config.channelById(QStringLiteral("co"));
     QVERIFY(co);
-    co->threshold.enabled = true;
-    QVERIFY(hasIssueText(validateConfig(config), QStringLiteral("chưa nhập cận")));
-
-    co->threshold.hasLow = true;
-    co->threshold.low = 10.0;
-    co->threshold.hasHigh = true;
-    co->threshold.high = 5.0;
-    QVERIFY(hasIssueText(validateConfig(config), QStringLiteral("lớn hơn ngưỡng trên")));
-
-    co->threshold.low = 5.0;
-    co->threshold.high = 10.0;
+    QVERIFY(co->threshold.enabled);
+    QVERIFY(co->threshold.hasLow);
+    QVERIFY(co->threshold.hasHigh);
+    QCOMPARE(co->threshold.low, 0.0);
+    QCOMPARE(co->threshold.high, 1500.0);
+    QCOMPARE(co->rangeText, QStringLiteral("0 - 1.500 mg/Nm³"));
+    const ChannelConfig *ph = config.channelById(QStringLiteral("ph"));
+    QVERIFY(ph);
+    QCOMPARE(ph->threshold.low, 6.0);
+    QCOMPARE(ph->threshold.high, 9.0);
     QVERIFY(validateConfig(config).isEmpty());
 }
 

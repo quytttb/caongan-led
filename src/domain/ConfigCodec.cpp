@@ -50,32 +50,6 @@ QStringList readStringList(const QJsonObject &obj, const char *key)
     return result;
 }
 
-QJsonObject thresholdToJson(const Threshold &threshold)
-{
-    QJsonObject obj;
-    obj.insert(QStringLiteral("enabled"), threshold.enabled);
-    obj.insert(QStringLiteral("low"), optionalNumber(threshold.hasLow, threshold.low));
-    obj.insert(QStringLiteral("high"), optionalNumber(threshold.hasHigh, threshold.high));
-    return obj;
-}
-
-Threshold thresholdFromJson(const QJsonObject &obj)
-{
-    Threshold threshold;
-    threshold.enabled = readBool(obj, "enabled", false);
-    const QJsonValue low = obj.value(QStringLiteral("low"));
-    const QJsonValue high = obj.value(QStringLiteral("high"));
-    if (low.isDouble()) {
-        threshold.hasLow = true;
-        threshold.low = low.toDouble();
-    }
-    if (high.isDouble()) {
-        threshold.hasHigh = true;
-        threshold.high = high.toDouble();
-    }
-    return threshold;
-}
-
 } // namespace
 
 QJsonObject configToJson(const AppConfig &config)
@@ -87,8 +61,6 @@ QJsonObject configToJson(const AppConfig &config)
     branding.insert(QStringLiteral("companyName"), config.branding.companyName);
     branding.insert(QStringLiteral("branchName"), config.branding.branchName);
     branding.insert(QStringLiteral("address"), config.branding.address);
-    branding.insert(QStringLiteral("regulationText"), config.branding.regulationText);
-    branding.insert(QStringLiteral("footerNote"), config.branding.footerNote);
     root.insert(QStringLiteral("branding"), branding);
 
     QJsonObject display;
@@ -137,7 +109,6 @@ QJsonObject configToJson(const AppConfig &config)
         obj.insert(QStringLiteral("stationCode"), channel.stationCode);
         obj.insert(QStringLiteral("decimals"), channel.decimals);
         obj.insert(QStringLiteral("staleAfterSeconds"), channel.staleAfterSeconds);
-        obj.insert(QStringLiteral("threshold"), thresholdToJson(channel.threshold));
         channels.append(obj);
     }
     root.insert(QStringLiteral("channels"), channels);
@@ -162,14 +133,19 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
     parsed.branding.companyName = readString(branding, "companyName");
     parsed.branding.branchName = readString(branding, "branchName");
     parsed.branding.address = readString(branding, "address");
-    parsed.branding.regulationText = readString(branding, "regulationText");
-    parsed.branding.footerNote = readString(branding, "footerNote");
+    
 
     const QJsonObject display = object.value(QStringLiteral("display")).toObject();
     parsed.display.targetScreenName = readString(display, "targetScreenName");
     parsed.display.fullScreen = readBool(display, "fullScreen", true);
     parsed.display.designWidth = readInt(display, "designWidth", 1920);
-    parsed.display.designHeight = readInt(display, "designHeight", 1200);
+    parsed.display.designHeight = readInt(display, "designHeight", 1152);
+
+    // Ngưỡng và dải đo là cố định theo nhà máy: bỏ qua mọi giá trị
+    // threshold/range trong file cấu hình cũ, áp lại từ danh mục chuẩn.
+    QHash<QString, ChannelConfig> fixed;
+    for (const ChannelConfig &standard : defaultChannels())
+        fixed.insert(standard.id, standard);
 
     const QJsonObject storage = object.value(QStringLiteral("storage")).toObject();
     parsed.storage.checkpointRetentionDays = readInt(storage, "checkpointRetentionDays", 30);
@@ -222,8 +198,16 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
         channel.stationCode = readString(obj, "stationCode");
         channel.decimals = readInt(obj, "decimals", 1);
         channel.staleAfterSeconds = readInt(obj, "staleAfterSeconds", 900);
-        channel.threshold = thresholdFromJson(obj.value(QStringLiteral("threshold")).toObject());
+        // Bỏ qua threshold trong file: ngưỡng lấy từ danh mục cố định.
         parsed.channels.append(channel);
+    }
+
+    for (ChannelConfig &channel : parsed.channels) {
+        auto it = fixed.find(channel.id);
+        if (it != fixed.end()) {
+            channel.threshold = it->threshold;
+            channel.rangeText = it->rangeText;
+        }
     }
 
     if (!localErrors.isEmpty()) {
@@ -243,9 +227,9 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
     if (config.schemaVersion != 1)
         issues.append({QStringLiteral("schemaVersion"), QStringLiteral("Chỉ hỗ trợ schemaVersion = 1")});
 
-    if (config.display.designWidth != 1920 || config.display.designHeight != 1200) {
+    if (config.display.designWidth != 1920 || config.display.designHeight != 1152) {
         issues.append({QStringLiteral("display.designWidth/Height"),
-                       QStringLiteral("Khung thiết kế bắt buộc 1920 × 1200 px")});
+                       QStringLiteral("Khung thiết kế bắt buộc 1920 × 1152 px")});
     }
     if (config.storage.checkpointMaxRows < 100)
         issues.append({QStringLiteral("storage.checkpointMaxRows"),
@@ -327,21 +311,7 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
         if (channel.staleAfterSeconds < 10)
             issues.append({prefix + QStringLiteral(".staleAfterSeconds"),
                            QStringLiteral("staleAfterSeconds phải >= 10")});
-        if (channel.threshold.enabled) {
-            if (!channel.threshold.hasLow && !channel.threshold.hasHigh) {
-                issues.append({prefix + QStringLiteral(".threshold"),
-                               QStringLiteral("Ngưỡng đang bật nhưng chưa nhập cận dưới/cận trên")});
-            }
-            if (channel.threshold.hasLow && !std::isfinite(channel.threshold.low))
-                issues.append({prefix + QStringLiteral(".threshold.low"), QStringLiteral("Ngưỡng dưới không hợp lệ")});
-            if (channel.threshold.hasHigh && !std::isfinite(channel.threshold.high))
-                issues.append({prefix + QStringLiteral(".threshold.high"), QStringLiteral("Ngưỡng trên không hợp lệ")});
-            if (channel.threshold.hasLow && channel.threshold.hasHigh
-                && channel.threshold.low > channel.threshold.high) {
-                issues.append({prefix + QStringLiteral(".threshold"),
-                               QStringLiteral("Ngưỡng dưới lớn hơn ngưỡng trên")});
-            }
-        }
+
     }
 
     for (const QString &id : canonical) {

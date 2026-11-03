@@ -125,8 +125,8 @@ void TestReadingStore::appliesLatestByMeasurementTime()
     QVERIFY(co);
     QVERIFY(co->hasReading);
     QCOMPARE(co->valueText, QStringLiteral("20.0"));
-    QCOMPARE(co->display, DisplayState::Measuring);
-    QCOMPARE(co->threshold, ThresholdResult::NotConfigured);
+    QCOMPARE(co->display, DisplayState::WithinLimit);
+    QCOMPARE(co->threshold, ThresholdResult::WithinConfiguredLimit);
     QCOMPARE(co->freshness, Freshness::Fresh);
 }
 
@@ -195,7 +195,7 @@ void TestReadingStore::rejectsUnknownSourceAndFuture()
     const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->freshness, Freshness::Fresh);
-    QCOMPARE(co->display, DisplayState::Measuring);
+    QCOMPARE(co->display, DisplayState::WithinLimit);
 }
 
 void TestReadingStore::zeroIsValidReading()

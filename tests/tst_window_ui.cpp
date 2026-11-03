@@ -57,7 +57,7 @@ void TestWindowUi::ledAlwaysFullScreen()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(configPath, preview, true, {});
+    controller.initialize(configPath, preview);
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("ledParameterModel"), &led);
@@ -100,7 +100,7 @@ void TestWindowUi::operatorChrome()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath(QStringLiteral("config.json")), false, false, {});
+    controller.initialize(temp.filePath(QStringLiteral("config.json")), false);
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
