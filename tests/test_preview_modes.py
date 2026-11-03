@@ -18,7 +18,10 @@ def main() -> None:
         env = os.environ.copy()
         for key in ("CAONGAN_LED_DATA_DIR", "CAONGAN_LED_CONFIG_DIR", "CAONGAN_LED_LOG_DIR"):
             env.pop(key, None)
-        env.update(QT_QPA_PLATFORM="offscreen", QT_FATAL_WARNINGS="1", XDG_RUNTIME_DIR=str(runtime))
+        # Qt offscreen trên Windows có thể cảnh báo thiếu font hệ thống;
+        # smoke package dùng nền tảng Windows thật vẫn kiểm tra fatal warnings.
+        env.pop("QT_FATAL_WARNINGS", None)
+        env.update(QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(runtime))
 
         def run_preview(name: str, *args: str) -> Path:
             base = root / name
