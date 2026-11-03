@@ -117,27 +117,47 @@ jobs:
             echo "New tag $TAG will be created from the tested commit."
           fi
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
-        with:
-          tag_name: ${{ needs.validate.outputs.tag }}
-          target_commitish: ${{ needs.validate.outputs.commit }}
-          name: Cao Ngạn LED ${{ needs.validate.outputs.version }}
-          draft: false
-          prerelease: false
-          make_latest: true
-          generate_release_notes: true
-          body: |
-            Xác minh SHA-256 trước khi sử dụng. Xem hướng dẫn triển khai và checklist nghiệm thu
-            trong gói trước khi đưa ứng dụng vào vận hành trên máy Windows/LED.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          COMMIT: ${{ needs.validate.outputs.commit }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          body_file="$(mktemp)"
+          cat > "$body_file" <<'EOF'
+          Xác minh SHA-256 trước khi sử dụng. Xem hướng dẫn triển khai và checklist nghiệm thu
+          trong gói trước khi đưa ứng dụng vào vận hành trên máy Windows/LED.
 
-            - Windows x64: ZIP (chạy trực tiếp) hoặc MSI (cài per-machine, cần quyền admin và
-              Microsoft Visual C++ 2015-2022 x64 Redistributable).
-            - Linux amd64: gói DEB tự chứa Qt, cài bằng `sudo apt install ./caongan-led_*_amd64.deb`.
-          files: |
-            release-assets/*.zip
-            release-assets/*.zip.sha256
-            release-assets/*.msi
-            release-assets/*.msi.sha256
-            release-assets/*.deb
-            release-assets/*.deb.sha256
-          fail_on_unmatched_files: true
+          - Windows x64: ZIP (chạy trực tiếp) hoặc MSI (cài per-machine, cần quyền admin và
+            Microsoft Visual C++ 2015-2022 x64 Redistributable).
+          - Linux amd64: gói DEB tự chứa Qt, cài bằng `sudo apt install ./caongan-led_*_amd64.deb`.
+          EOF
+          if gh release view "$TAG" --json id >/dev/null 2>&1; then
+            echo "Cập nhật release hiện có: $TAG"
+            gh release edit "$TAG" \
+              --target "$COMMIT" \
+              --title "Cao Ngạn LED $VERSION" \
+              --notes-file "$body_file" \
+              --draft=false \
+              --prerelease=false \
+              --latest
+          else
+            echo "Tạo release mới: $TAG"
+            gh release create "$TAG" "$COMMIT" \
+              --title "Cao Ngạn LED $VERSION" \
+              --notes-file "$body_file" \
+              --draft=false \
+              --prerelease=false \
+              --latest
+          fi
+          echo "Đăng tải asset (ghi đè nếu tồn tại):"
+          gh release upload "$TAG" \
+            release-assets/*.zip \
+            release-assets/*.zip.sha256 \
+            release-assets/*.msi \
+            release-assets/*.msi.sha256 \
+            release-assets/*.deb \
+            release-assets/*.deb.sha256 \
+            --clobber
+          rm -f "$body_file"
