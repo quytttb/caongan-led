@@ -1,0 +1,3 @@
+#!/bin/sh
+# Qt, plugins và QML được cài riêng trong /opt; qt.conf định vị các thư viện.
+exec /opt/caongan-led/bin/caongan_led "$@"

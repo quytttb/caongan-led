@@ -28,7 +28,7 @@ Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule updat
 
 - [Kiến trúc](docs/architecture.md), [hợp đồng đầu vào](docs/input-contract.md), [cấu hình](docs/config-contract.md).
 - [Hướng dẫn vận hành](docs/runbook.md), [hướng dẫn thử](docs/walkthrough.md), [checklist nghiệm thu](docs/acceptance-checklist.md).
-- [Windows build/deploy và rollback](packaging/windows/README.md); [nguồn gốc](docs/provenance.md), [giấy phép bên thứ ba](THIRD_PARTY_NOTICES.md), [việc còn lại](docs/todo.md).
+- [Windows build/deploy, MSI và rollback](packaging/windows/README.md); [Linux build/DEB](packaging/linux/README.md); [nguồn gốc](docs/provenance.md), [giấy phép bên thứ ba](THIRD_PARTY_NOTICES.md), [việc còn lại](docs/todo.md).
 - [CI, Dev Build và Build Release](docs/ci-cd.md).
 - [Simulator TT10 cho test thủ công](docs/simulator.md).
 

@@ -17,6 +17,30 @@ Script không chứng minh đủ mọi QML import/DLL hay quyền phân phối. 
 
 Sau deploy, có thể chạy `smoke.ps1 -PackageDir <thu-muc-package> -ScratchDir <thu-muc-moi>` trên Windows: script yêu cầu app xác nhận LED preview hiển thị toàn màn hình không viền, cửa sổ vận hành hiển thị không có title bar native rồi thoát, kiểm tra SQLite, dùng PATH không chứa Qt build. Thư mục scratch phải chưa tồn tại; script không xóa dữ liệu. CI dùng bước này nhưng nó không thay thế kiểm thử máy sạch, LED hay 72 giờ.
 
+## MSI
+
+Sau khi deploy ZIP, có thể tạo MSI bằng **WiX Toolset 3.14** (`heat.exe`, `candle.exe`, `light.exe`; runner Windows 2022 của GitHub đã cài sẵn). Trên máy khác, cài WiX 3 rồi thêm thư mục `bin` vào `PATH`, đặt biến `WIX`, hoặc truyền `-WixBin`:
+
+```powershell
+.\packaging\windows\build-msi.ps1 `
+  -PackageDir .\dist\caongan-led-1.0.0-win-x64 `
+  -OutputDir .\dist `
+  -BuildDir "$env:TEMP\caongan-msi" `
+  -Version '1.0.0'
+```
+
+Script harvest toàn bộ thư mục package, tạo MSI **per-machine** vào `Program Files\Cao Ngạn LED`, shortcut Start Menu và MajorUpgrade theo `UpgradeCode` cố định trong `CaoNganLed.wxs`. MSI chặn cài nếu thiếu Microsoft Visual C++ 2015-2022 **x64** runtime nhưng **không** cài redistributable. Gỡ bằng **Apps & features**; dữ liệu trong `%LOCALAPPDATA%` hoặc `CAONGAN_LED_BASE_DIR` không bị xóa. MSI chưa được ký.
+
+Chỉ chạy `smoke-msi.ps1` trên GitHub Actions runner cô lập: script cài và gỡ MSI thật, và từ chối chạy ngoài `GITHUB_ACTIONS=true` để tránh cài nhầm máy cá nhân. CI gọi:
+
+```powershell
+.\packaging\windows\smoke-msi.ps1 -MsiPath .\dist\caongan-led-1.0.0-win-x64.msi `
+  -ScratchDir "$env:TEMP\caongan-msi-smoke" `
+  -PackageSmokeScript .\packaging\windows\smoke.ps1
+```
+
+Smoke cài `/qn` vào thư mục tạm, chạy `smoke.ps1`, gỡ rồi kiểm tra executable đã biến mất nhưng dữ liệu ứng dụng còn. MSI chưa thay thế kiểm tra trên Windows sạch, máy đích hoặc LED.
+
 ## Task Scheduler — chỉ cấu hình sau phê duyệt
 
 `TaskScheduler.example.xml` là **mẫu chưa kiểm chứng**, chứa placeholder `REPLACE_WITH_DOMAIN\USERNAME` và đường dẫn, không import trực tiếp. Dùng Task Scheduler GUI để tạo task dưới đúng tài khoản vận hành:

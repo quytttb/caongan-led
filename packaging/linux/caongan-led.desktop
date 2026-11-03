@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Cao Ngạn LED
+Comment=Bảng quan trắc khí thải và nước thải
+Exec=caongan-led
+Icon=caongan-led
+StartupWMClass=caongan_led
+Terminal=false
+Categories=Utility;

@@ -75,12 +75,25 @@ jobs:
         with:
           name: caongan-led-windows-${{ needs.validate.outputs.commit }}
           path: release-assets
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: caongan-led-linux-${{ needs.validate.outputs.commit }}
+          path: release-assets
       - name: Verify expected artifacts
+        shell: bash
         env:
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
+          set -euo pipefail
           cd release-assets
-          sha256sum -c "caongan-led-${VERSION}-win-x64.zip.sha256"
+          for path in \
+            "caongan-led-${VERSION}-win-x64.zip" \
+            "caongan-led-${VERSION}-win-x64.msi" \
+            "caongan-led_${VERSION}_amd64.deb"; do
+            test -f "$path" || { echo "Missing release asset: $path" >&2; exit 1; }
+            test -f "$path.sha256" || { echo "Missing checksum: $path.sha256" >&2; exit 1; }
+            sha256sum --check --strict "$path.sha256"
+          done
       - name: Verify tag still points to tested commit
         env:
           TAG: ${{ needs.validate.outputs.tag }}
@@ -116,7 +129,15 @@ jobs:
           body: |
             Xác minh SHA-256 trước khi sử dụng. Xem hướng dẫn triển khai và checklist nghiệm thu
             trong gói trước khi đưa ứng dụng vào vận hành trên máy Windows/LED.
+
+            - Windows x64: ZIP (chạy trực tiếp) hoặc MSI (cài per-machine, cần quyền admin và
+              Microsoft Visual C++ 2015-2022 x64 Redistributable).
+            - Linux amd64: gói DEB tự chứa Qt, cài bằng `sudo apt install ./caongan-led_*_amd64.deb`.
           files: |
             release-assets/*.zip
             release-assets/*.zip.sha256
+            release-assets/*.msi
+            release-assets/*.msi.sha256
+            release-assets/*.deb
+            release-assets/*.deb.sha256
           fail_on_unmatched_files: true
