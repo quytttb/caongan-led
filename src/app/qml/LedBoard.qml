@@ -54,22 +54,8 @@ Item {
         }
 
         Text {
-            id: companyText
             x: 118
             y: 8
-            width: 1000
-            text: root.brand.companyName || ""
-            color: "#FFFFFF"
-            font.family: "Inter"
-            font.pixelSize: 34
-            font.bold: true
-            elide: Text.ElideRight
-            renderType: Text.NativeRendering
-        }
-
-        Text {
-            x: 118
-            y: 51
             width: 1000
             text: root.brand.branchName || ""
             color: "#FFFFFF"
@@ -77,6 +63,20 @@ Item {
             font.pixelSize: 21
             elide: Text.ElideRight
             visible: text.length > 0
+            renderType: Text.NativeRendering
+        }
+
+        Text {
+            id: companyText
+            x: 118
+            y: 34
+            width: 1000
+            text: root.brand.companyName || ""
+            color: "#FFFFFF"
+            font.family: "Inter"
+            font.pixelSize: 34
+            font.bold: true
+            elide: Text.ElideRight
             renderType: Text.NativeRendering
         }
 

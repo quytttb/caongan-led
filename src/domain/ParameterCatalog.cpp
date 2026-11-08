@@ -205,7 +205,7 @@ AppConfig defaultAppConfig()
     config.branding.branchName =
         QStringLiteral("CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP");
     config.branding.address =
-        QStringLiteral("Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
+        QStringLiteral("Ngõ 719 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
     config.sources = defaultSources();
     config.channels = defaultChannels();
     return config;
