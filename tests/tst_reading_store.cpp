@@ -192,7 +192,8 @@ void TestReadingStore::rejectsUnknownSourceAndFuture()
     Reading withinTolerance = coReading(2.0, now.addSecs(120));
     QCOMPARE(store.apply(withinTolerance, now).code, ApplyOutcome::Code::Accepted);
 
-    const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates1 = store.evaluate(now);
+    const ChannelState *co = findState(evaluatedStates1, QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->freshness, Freshness::Fresh);
     QCOMPARE(co->display, DisplayState::WithinLimit);
@@ -206,7 +207,8 @@ void TestReadingStore::zeroIsValidReading()
 
     QCOMPARE(store.apply(coReading(0.0, now.addSecs(-30)), now).code,
              ApplyOutcome::Code::Accepted);
-    const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates2 = store.evaluate(now);
+    const ChannelState *co = findState(evaluatedStates2, QStringLiteral("co"));
     QVERIFY(co);
     QVERIFY(co->hasReading);
     QVERIFY(co->reading.value.has_value());
@@ -228,7 +230,8 @@ void TestReadingStore::newerInvalidReplacesOldGood()
                                    DeviceStatus::Measuring, Validity::Invalid), now).code,
              ApplyOutcome::Code::Accepted);
 
-    const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates3 = store.evaluate(now);
+    const ChannelState *co = findState(evaluatedStates3, QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->display, DisplayState::Invalid);
     QCOMPARE(co->valueText, QStringLiteral("—"));
@@ -243,7 +246,8 @@ void TestReadingStore::deviceStatusOverridesThreshold()
 
     QCOMPARE(store.apply(coReading(5.0, now.addSecs(-30), DeviceStatus::Calibrating), now).code,
              ApplyOutcome::Code::Accepted);
-    const ChannelState *calibrating = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates4 = store.evaluate(now);
+    const ChannelState *calibrating = findState(evaluatedStates4, QStringLiteral("co"));
     QVERIFY(calibrating);
     QCOMPARE(calibrating->display, DisplayState::Calibrating);
     QCOMPARE(calibrating->threshold, ThresholdResult::NotEvaluated);
@@ -251,14 +255,16 @@ void TestReadingStore::deviceStatusOverridesThreshold()
 
     QCOMPARE(store.apply(coReading(5.0, now.addSecs(-20), DeviceStatus::DeviceFault), now).code,
              ApplyOutcome::Code::Accepted);
-    const ChannelState *fault = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates5 = store.evaluate(now);
+    const ChannelState *fault = findState(evaluatedStates5, QStringLiteral("co"));
     QVERIFY(fault);
     QCOMPARE(fault->display, DisplayState::DeviceFault);
     QCOMPARE(fault->threshold, ThresholdResult::NotEvaluated);
 
     QCOMPARE(store.apply(coReading(5.0, now.addSecs(-10), DeviceStatus::Unknown), now).code,
              ApplyOutcome::Code::Accepted);
-    const ChannelState *unknown = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates6 = store.evaluate(now);
+    const ChannelState *unknown = findState(evaluatedStates6, QStringLiteral("co"));
     QVERIFY(unknown);
     QCOMPARE(unknown->display, DisplayState::UnknownStatus);
     QCOMPARE(unknown->threshold, ThresholdResult::NotEvaluated);
@@ -321,7 +327,8 @@ void TestReadingStore::staleAndFutureDisplay()
 
     QCOMPARE(store.apply(coReading(50.0, now.addSecs(-901)), now).code,
              ApplyOutcome::Code::Accepted);
-    const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates7 = store.evaluate(now);
+    const ChannelState *co = findState(evaluatedStates7, QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->freshness, Freshness::Stale);
     QCOMPARE(co->display, DisplayState::Stale);
@@ -332,7 +339,8 @@ void TestReadingStore::staleAndFutureDisplay()
     Reading future = coReading(50.0, now.addSecs(100));
     store.apply(future, now);
     const QDateTime earlier = now.addSecs(-30);
-    const ChannelState *futureState = findState(store.evaluate(earlier), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates8 = store.evaluate(earlier);
+    const ChannelState *futureState = findState(evaluatedStates8, QStringLiteral("co"));
     QVERIFY(futureState);
     QCOMPARE(futureState->freshness, Freshness::FutureTimestamp);
     QCOMPARE(futureState->display, DisplayState::FutureTimestamp);
@@ -348,7 +356,8 @@ void TestReadingStore::unitMismatch()
     Reading wrongUnit = coReading(10.0, now.addSecs(-30));
     wrongUnit.unit = QStringLiteral("mg/m³");
     QCOMPARE(store.apply(wrongUnit, now).code, ApplyOutcome::Code::Accepted);
-    const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates9 = store.evaluate(now);
+    const ChannelState *co = findState(evaluatedStates9, QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->validity, Validity::UnitMismatch);
     QCOMPARE(co->display, DisplayState::UnitMismatch);
@@ -357,7 +366,8 @@ void TestReadingStore::unitMismatch()
     Reading normalized = coReading(10.0, now.addSecs(-20));
     normalized.unit = QStringLiteral("mg/Nm3");
     QCOMPARE(store.apply(normalized, now).code, ApplyOutcome::Code::Accepted);
-    co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates10 = store.evaluate(now);
+    co = findState(evaluatedStates10, QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->validity, Validity::Valid);
     QCOMPARE(co->display, DisplayState::WithinLimit);
@@ -459,7 +469,8 @@ void TestReadingStore::thresholdComparedBeforeRounding()
 
     QCOMPARE(store.apply(coReading(10.04, now.addSecs(-30)), now).code,
              ApplyOutcome::Code::Accepted);
-    const ChannelState *co = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates11 = store.evaluate(now);
+    const ChannelState *co = findState(evaluatedStates11, QStringLiteral("co"));
     QVERIFY(co);
     QCOMPARE(co->valueText, QStringLiteral("10.0"));
     QCOMPARE(co->threshold, ThresholdResult::ExceedsConfiguredLimit);
@@ -482,7 +493,8 @@ void TestReadingStore::setConfigDropsIncompatibleReading()
     store.setConfig(config);
     QVERIFY(!store.hasReading(QStringLiteral("co")));
 
-    const ChannelState *state = findState(store.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates12 = store.evaluate(now);
+    const ChannelState *state = findState(evaluatedStates12, QStringLiteral("co"));
     QVERIFY(state);
     QCOMPARE(state->display, DisplayState::NoData);
     QVERIFY(!state->hasReading);
@@ -505,7 +517,8 @@ void TestReadingStore::loadPersistedUsesCurrentClock()
     staleStore.setConfig(defaultAppConfig());
     staleStore.loadPersisted({coReading(10.0, now.addSecs(-1000))}, now);
     QVERIFY(staleStore.hasReading(QStringLiteral("co")));
-    const ChannelState *stale = findState(staleStore.evaluate(now), QStringLiteral("co"));
+    const QVector<ChannelState> evaluatedStates13 = staleStore.evaluate(now);
+    const ChannelState *stale = findState(evaluatedStates13, QStringLiteral("co"));
     QVERIFY(stale);
     QCOMPARE(stale->freshness, Freshness::Stale);
     QCOMPARE(stale->display, DisplayState::Stale);
