@@ -137,7 +137,8 @@ jobs:
             echo "Release $TAG đã tồn tại; giữ metadata hiện có và chỉ đăng tải asset."
           else
             echo "Tạo release mới: $TAG"
-            gh release create "$TAG" "$COMMIT" \
+            gh release create "$TAG" \
+              --target "$COMMIT" \
               --title "Cao Ngạn LED $VERSION" \
               --notes-file "$body_file" \
               --draft=false \
