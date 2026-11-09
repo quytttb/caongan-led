@@ -288,3 +288,60 @@ jobs:
             dist/*.msi.sha256
           if-no-files-found: error
           retention-days: 7
+
+  sanitizers:
+    name: Linux — ASan and UBSan tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: recursive
+          ref: ${{ inputs.source_sha || github.sha }}
+
+      - name: Read Qt version
+        id: qt
+        run: echo "version=$(tr -d '[:space:]' < packaging/qt_version.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Install build and Qt platform dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgl1-mesa-dev libfontconfig1-dev libdbus-1-dev \
+            libxkbcommon-dev libegl1 libgl1 libglib2.0-0 libxkbcommon0 libxkbcommon-x11-0 \
+            libdbus-1-3 libfontconfig1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
+            libxcb-xfixes0 libxcb-xkb1 libwayland-client0 libwayland-cursor0 libwayland-egl1 \
+            patchelf dpkg-dev
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ steps.qt.outputs.version }}
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          dir: ${{ runner.temp }}
+          install-deps: false
+          aqtsource: ${{ env.AQT_SOURCE }}
+          cache: true
+          cache-key-prefix: caongan-qt${{ steps.qt.outputs.version }}-linux
+
+      - name: Configure with sanitizers
+        env:
+          CXXFLAGS: -fsanitize=address,undefined -fno-omit-frame-pointer -O1
+          LDFLAGS: -fsanitize=address,undefined
+        run: >-
+          cmake -S . -B build-asan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR"
+          -DCAONGAN_BUILD_TESTS=ON
+
+      - name: Build sanitizer tests
+        run: cmake --build build-asan --parallel 4
+
+      - name: Test with sanitizers
+        env:
+          QT_QPA_PLATFORM: offscreen
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build-asan --output-on-failure
