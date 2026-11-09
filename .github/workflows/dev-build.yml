@@ -64,7 +64,7 @@ jobs:
           cd dev-assets
           shopt -s nullglob
           for pattern in 'caongan-led-*-win-x64.zip.sha256' 'caongan-led-*-win-x64.msi.sha256' 'caongan-led_*_amd64.deb.sha256'; do
-            checksums=( $pattern )
+            mapfile -t checksums < <(compgen -G "$pattern" || true)
             if [[ ${#checksums[@]} -ne 1 ]]; then
               echo "Expected exactly one checksum for $pattern." >&2
               exit 1
