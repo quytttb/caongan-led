@@ -122,6 +122,7 @@ jobs:
           fi
 
       - name: Read built version
+        if: ${{ github.event_name != 'pull_request' }}
         id: version
         shell: bash
         run: |
@@ -131,6 +132,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build DEB
+        if: ${{ github.event_name != 'pull_request' }}
         shell: bash
         env:
           CAONGAN_SOURCE_DIR: ${{ github.workspace }}
@@ -140,6 +142,7 @@ jobs:
         run: bash .package-tools/packaging/linux/build-deb.sh
 
       - name: Test DEB without build Qt on PATH
+        if: ${{ github.event_name != 'pull_request' }}
         shell: bash
         run: >-
           bash .package-tools/packaging/linux/smoke-deb.sh
@@ -148,6 +151,7 @@ jobs:
           '${{ steps.version.outputs.version }}'
 
       - name: Install and uninstall DEB on clean Ubuntu 24.04
+        if: ${{ github.event_name != 'pull_request' }}
         shell: bash
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
@@ -176,6 +180,7 @@ jobs:
             '
 
       - name: Upload Linux test artifact
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: caongan-led-linux-${{ inputs.source_sha || github.sha }}
@@ -238,6 +243,7 @@ jobs:
           ./packaging/windows/build.ps1 -QtRoot $env:QT_ROOT_DIR -Version $env:BUILD_VERSION
 
       - name: Read built version
+        if: ${{ github.event_name != 'pull_request' }}
         id: version
         shell: pwsh
         env:
@@ -250,10 +256,12 @@ jobs:
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Deploy and checksum
+        if: ${{ github.event_name != 'pull_request' }}
         shell: pwsh
         run: ./packaging/windows/deploy.ps1 -QtRoot $env:QT_ROOT_DIR -Version '${{ steps.version.outputs.version }}'
 
       - name: Test deployed package without Qt on PATH
+        if: ${{ github.event_name != 'pull_request' }}
         shell: pwsh
         run: >-
           ./.package-tools/packaging/windows/smoke.ps1
@@ -261,6 +269,7 @@ jobs:
           -ScratchDir "$env:RUNNER_TEMP/caongan-led-package-smoke"
 
       - name: Build MSI
+        if: ${{ github.event_name != 'pull_request' }}
         shell: pwsh
         run: >-
           ./.package-tools/packaging/windows/build-msi.ps1
@@ -270,6 +279,7 @@ jobs:
           -Version '${{ steps.version.outputs.version }}'
 
       - name: Install and uninstall MSI on isolated Windows runner
+        if: ${{ github.event_name != 'pull_request' }}
         shell: pwsh
         run: >-
           ./.package-tools/packaging/windows/smoke-msi.ps1
@@ -278,6 +288,7 @@ jobs:
           -PackageSmokeScript "${{ github.workspace }}/.package-tools/packaging/windows/smoke.ps1"
 
       - name: Upload Windows test artifact
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: caongan-led-windows-${{ inputs.source_sha || github.sha }}
