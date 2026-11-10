@@ -11,10 +11,6 @@
 
 Tình huống có sẵn: bình thường, giá trị cao, hiệu chuẩn `01`, lỗi thiết bị `02`, dữ liệu cũ, thiếu pH, PM sai đơn vị, xung đột SO₂ cùng timestamp, Flow 6 chữ số và trạng thái lạ `03`. Hai cảnh **dữ liệu cũ/thiếu pH** cố ý ngừng gửi kênh tương ứng: hãy gửi bình thường trước, chuyển cảnh rồi chờ timeout; sandbox cài sẵn dùng 15 giây. So sánh giá trị thử với ngưỡng cố định trong catalog; không sửa ngưỡng trong cửa sổ vận hành.
 
-## Trên Windows (không cần Python)
-
-`packaging/windows/simulator` là bản PowerShell + Windows Forms, phát cùng nội dung TT10 và cùng các cảnh như bản Python. Chạy `Chay_Simulator.bat`, rồi dán hai đường dẫn hiện trong cửa sổ vào trang **Nguồn dữ liệu** của app (mã trạm `KHITO1` và `NUONT1`). Sandbox mặc định `%LOCALAPPDATA%\CaoNganLED-Simulator`; công cụ từ chối thư mục không rỗng chưa có marker, không ghi đè file và cần NTFS. Xem `packaging/windows/simulator/HUONG_DAN.md`.
-
 ## Chạy từ mã nguồn
 
 ```sh

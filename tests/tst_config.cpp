@@ -56,6 +56,7 @@ private slots:
     void sampleMatchesDefaults();
     void relativeSourceRejected();
     void jsonRoundTrip();
+    void legacyAddressCorrected();
     void schemaVersionRejected();
     void invalidGroupRejected();
     void missingChannelRejected();
@@ -83,6 +84,12 @@ void TestConfig::defaultsAreValidAndOrdered()
     const AppConfig config = defaultAppConfig();
     const QList<ConfigIssue> issues = validateConfig(config);
     QVERIFY2(issues.isEmpty(), qPrintable(configIssuesToStrings(issues).join("\n")));
+
+    QCOMPARE(config.branding.branchName,
+             QStringLiteral("CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP"));
+    QCOMPARE(config.branding.companyName, QStringLiteral("CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV"));
+    QCOMPARE(config.branding.address,
+             QStringLiteral("Ngõ 719 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên"));
 
     QCOMPARE(config.sources.size(), 2);
     QCOMPARE(config.sources.at(0).id, QStringLiteral("khi-thai"));
@@ -151,6 +158,44 @@ void TestConfig::jsonRoundTrip()
     QVERIFY(parsedCo->threshold.enabled);
     QCOMPARE(parsedCo->threshold.high, 1500.0);
     QVERIFY(!parsedCo->rangeText.isEmpty());
+}
+
+void TestConfig::legacyAddressCorrected()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString path = temp.filePath(QStringLiteral("config.json"));
+
+    AppConfig original = defaultAppConfig();
+    original.branding.companyName = QStringLiteral("Công ty tùy chỉnh");
+    original.branding.address =
+        QStringLiteral("Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
+    original.sources[0].folder = temp.filePath(QStringLiteral("du-lieu"));
+    original.display.targetScreenName = QStringLiteral("LED-1");
+    const QByteArray fileContents = QJsonDocument(configToJson(original)).toJson();
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(fileContents), fileContents.size());
+    file.close();
+
+    ConfigStore store(path);
+    AppConfig loaded;
+    QStringList messages;
+    QCOMPARE(store.load(loaded, &messages), ConfigStore::LoadStatus::Loaded);
+    original.branding.address =
+        QStringLiteral("Ngõ 719 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
+    QCOMPARE(configToJson(loaded), configToJson(original));
+    QCOMPARE(readAll(path), fileContents);
+    QString saveError;
+    QVERIFY2(store.save(loaded, &saveError), qPrintable(saveError));
+    QCOMPARE(QJsonDocument::fromJson(readAll(path)).object(), configToJson(original));
+
+    // Không sửa các địa chỉ tùy chỉnh, kể cả khi có số ngõ cũ.
+    original.branding.address = QStringLiteral("Địa chỉ tùy chỉnh, ngõ 517");
+    AppConfig custom;
+    QStringList errors;
+    QVERIFY2(configFromJson(configToJson(original), custom, &errors), qPrintable(errors.join("\n")));
+    QCOMPARE(configToJson(custom), configToJson(original));
 }
 
 void TestConfig::schemaVersionRejected()
@@ -237,7 +282,7 @@ void TestConfig::thresholdValidation()
     QVERIFY(co->threshold.hasHigh);
     QCOMPARE(co->threshold.low, 0.0);
     QCOMPARE(co->threshold.high, 1500.0);
-    QCOMPARE(co->rangeText, QStringLiteral("0 - 1.500 mg/Nm³"));
+    QCOMPARE(co->rangeText, QStringLiteral("0 - 1500 mg/Nm³"));
     const ChannelConfig *ph = config.channelById(QStringLiteral("ph"));
     QVERIFY(ph);
     QCOMPARE(ph->threshold.low, 6.0);
@@ -252,17 +297,17 @@ void TestConfig::fixedThresholds_data()
     QTest::addColumn<double>("high");
     QTest::addColumn<QString>("range");
     QTest::newRow("O2") << QStringLiteral("o2") << 0.0 << 25.0 << QStringLiteral("0 - 25 %V");
-    QTest::newRow("CO") << QStringLiteral("co") << 0.0 << 1500.0 << QStringLiteral("0 - 1.500 mg/Nm³");
-    QTest::newRow("NOx") << QStringLiteral("nox") << 0.0 << 1500.0 << QStringLiteral("0 - 1.500 mg/Nm³");
-    QTest::newRow("SO2") << QStringLiteral("so2") << 0.0 << 1000.0 << QStringLiteral("0 - 1.000 mg/Nm³");
-    QTest::newRow("PM") << QStringLiteral("pm") << 0.0 << 1000.0 << QStringLiteral("0 - 1.000 mg/Nm³");
+    QTest::newRow("CO") << QStringLiteral("co") << 0.0 << 1500.0 << QStringLiteral("0 - 1500 mg/Nm³");
+    QTest::newRow("NOx") << QStringLiteral("nox") << 0.0 << 1500.0 << QStringLiteral("0 - 1500 mg/Nm³");
+    QTest::newRow("SO2") << QStringLiteral("so2") << 0.0 << 1000.0 << QStringLiteral("0 - 1000 mg/Nm³");
+    QTest::newRow("PM") << QStringLiteral("pm") << 0.0 << 1000.0 << QStringLiteral("0 - 1000 mg/Nm³");
     QTest::newRow("Temp") << QStringLiteral("temp_flue") << 0.0 << 500.0 << QStringLiteral("0 - 500 °C");
-    QTest::newRow("Flow") << QStringLiteral("flow_flue") << 0.0 << 1000000.0 << QStringLiteral("0 - 1.000.000 m³/h");
+    QTest::newRow("Flow") << QStringLiteral("flow_flue") << 0.0 << 1000000.0 << QStringLiteral("0 - 1000000 m³/h");
     QTest::newRow("P") << QStringLiteral("pressure_flue") << 0.0 << 160.0 << QStringLiteral("0 - 160 kPa");
     QTest::newRow("pH") << QStringLiteral("ph") << 6.0 << 9.0 << QStringLiteral("0 - 14");
     QTest::newRow("TSS") << QStringLiteral("tss") << 0.0 << 55.0 << QStringLiteral("0 - 55 mg/L");
-    QTest::newRow("COD") << QStringLiteral("cod") << 0.0 << 82.5 << QStringLiteral("0 - 82,5 mg/L");
-    QTest::newRow("NH4") << QStringLiteral("nh4") << 0.0 << 5.5 << QStringLiteral("0 - 5,5 mg/L");
+    QTest::newRow("COD") << QStringLiteral("cod") << 0.0 << 82.5 << QStringLiteral("0 - 82.5 mg/L");
+    QTest::newRow("NH4") << QStringLiteral("nh4") << 0.0 << 5.5 << QStringLiteral("0 - 5.5 mg/L");
 }
 
 void TestConfig::fixedThresholds()

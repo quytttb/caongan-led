@@ -42,7 +42,7 @@ QVariant LedParameterModel::data(const QModelIndex &index, int role) const
     case ThresholdTextRole: {
         if (!state.config.threshold.configured())
             return QStringLiteral("Chưa đặt ngưỡng");
-        return formatThreshold(state.config.threshold, state.config.decimals);
+        return formatThreshold(state.config.threshold, state.config.id == QStringLiteral("ph") ? 0 : state.config.decimals);
     }
     case SourceNameRole:    return state.sourceName;
     case HasReadingRole:    return state.hasReading;

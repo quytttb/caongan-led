@@ -106,7 +106,7 @@ QList<ChannelConfig> defaultChannels()
 
     channels << makeChannel(QStringLiteral("co"), ChannelGroup::Exhaust,
                             QStringLiteral("CO"), QStringLiteral("Cacbon monoxit"),
-                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.500 mg/Nm³"),
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1500 mg/Nm³"),
                             true, kLowZero, 1500.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("CO")},
@@ -114,7 +114,7 @@ QList<ChannelConfig> defaultChannels()
 
     channels << makeChannel(QStringLiteral("nox"), ChannelGroup::Exhaust,
                             QStringLiteral("NOₓ"), QStringLiteral("Nitơ oxit"),
-                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.500 mg/Nm³"),
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1500 mg/Nm³"),
                             true, kLowZero, 1500.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("NOx"), QStringLiteral("NOX"), QStringLiteral("NOₓ")},
@@ -122,7 +122,7 @@ QList<ChannelConfig> defaultChannels()
 
     channels << makeChannel(QStringLiteral("so2"), ChannelGroup::Exhaust,
                             QStringLiteral("SO₂"), QStringLiteral("Lưu huỳnh đioxit"),
-                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.000 mg/Nm³"),
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1000 mg/Nm³"),
                             true, kLowZero, 1000.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("SO2"), QStringLiteral("SO₂")},
@@ -130,7 +130,7 @@ QList<ChannelConfig> defaultChannels()
 
     channels << makeChannel(QStringLiteral("pm"), ChannelGroup::Exhaust,
                             QStringLiteral("PM"), QStringLiteral("Bụi"),
-                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1.000 mg/Nm³"),
+                            QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1000 mg/Nm³"),
                             true, kLowZero, 1000.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("PM")},
@@ -146,7 +146,7 @@ QList<ChannelConfig> defaultChannels()
 
     channels << makeChannel(QStringLiteral("flow_flue"), ChannelGroup::Exhaust,
                             QStringLiteral("Flow"), QStringLiteral("Lưu lượng khí"),
-                            QStringLiteral("m³/h"), QStringLiteral("0 - 1.000.000 m³/h"),
+                            QStringLiteral("m³/h"), QStringLiteral("0 - 1000000 m³/h"),
                             true, kLowZero, 1000000.0,
                             {QStringLiteral("m³/h")},
                             {QStringLiteral("Flow")},
@@ -175,11 +175,11 @@ QList<ChannelConfig> defaultChannels()
                             true, kLowZero, 55.0,
                             {QStringLiteral("mg/L")},
                             {QStringLiteral("TSS")},
-                            waterSource, waterStation, 1);
+                            waterSource, waterStation, 2);
 
     channels << makeChannel(QStringLiteral("cod"), ChannelGroup::Wastewater,
                             QStringLiteral("COD"), QStringLiteral("Nhu cầu oxy hóa học"),
-                            QStringLiteral("mg/L"), QStringLiteral("0 - 82,5 mg/L"),
+                            QStringLiteral("mg/L"), QStringLiteral("0 - 82.5 mg/L"),
                             true, kLowZero, 82.5,
                             {QStringLiteral("mg/L")},
                             {QStringLiteral("COD")},
@@ -187,7 +187,7 @@ QList<ChannelConfig> defaultChannels()
 
     channels << makeChannel(QStringLiteral("nh4"), ChannelGroup::Wastewater,
                             QStringLiteral("NH₄⁺"), QStringLiteral("Amoni"),
-                            QStringLiteral("mg/L"), QStringLiteral("0 - 5,5 mg/L"),
+                            QStringLiteral("mg/L"), QStringLiteral("0 - 5.5 mg/L"),
                             true, kLowZero, 5.5,
                             {QStringLiteral("mg/L")},
                             {QStringLiteral("NH4+"), QStringLiteral("NH₄⁺"),

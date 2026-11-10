@@ -54,13 +54,16 @@ Item {
         }
 
         Text {
+            id: branchText
+            objectName: "branchName"
             x: 118
-            y: 8
+            y: 4
             width: 1000
-            text: root.brand.branchName || ""
+            text: (root.brand.branchName || "").toUpperCase()
             color: "#FFFFFF"
             font.family: "Inter"
             font.pixelSize: 21
+            font.bold: true
             elide: Text.ElideRight
             visible: text.length > 0
             renderType: Text.NativeRendering
@@ -68,8 +71,9 @@ Item {
 
         Text {
             id: companyText
+            objectName: "companyName"
             x: 118
-            y: 34
+            y: Math.max(34, branchText.y + branchText.height)
             width: 1000
             text: root.brand.companyName || ""
             color: "#FFFFFF"
@@ -81,8 +85,9 @@ Item {
         }
 
         Text {
+            objectName: "companyAddress"
             x: 118
-            y: 79
+            y: Math.max(79, companyText.y + companyText.height)
             width: 1000
             text: root.brand.address || ""
             color: "#FFFFFF"
@@ -214,7 +219,7 @@ Item {
 
             symbol: model.symbol
             unit: model.unit
-            rangeText: model.rangeText
+            rangeText: model.channelId === "ph" ? model.thresholdText : model.rangeText
             valueText: model.valueText
             statusText: model.statusText
             stateKey: model.stateKey
@@ -261,7 +266,7 @@ Item {
         objectName: "legendExceeds"
         y: 876
         accent: "#FF5252"
-        message: "MÀU ĐỎ: VƯỢT NGƯỠNG GIỚI HẠN CHO PHÉP"
+        message: "SỐ ĐỎ: VƯỢT NGƯỠNG  •  Ô ĐỎ: LỖI / HIỆU CHUẨN / BẢO TRÌ"
     }
 
     Text {

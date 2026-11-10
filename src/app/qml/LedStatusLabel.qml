@@ -19,15 +19,14 @@ Rectangle {
     function foregroundFor(key) {
         switch (key) {
         case "withinLimit":
-            return "#00E5FF"
         case "exceedsLimit":
-            return "#FF5252"
+            return "#00E5FF"
         case "deviceFault":
         case "conflict":
         case "calibrating":
         case "maintenance":
         case "unitMismatch":
-            return "#FFD60A"
+            return "#FF5252"
         case "stale":
         case "futureTimestamp":
         case "invalid":

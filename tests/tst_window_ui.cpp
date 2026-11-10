@@ -7,6 +7,7 @@
 
 #include <QGuiApplication>
 #include <QFile>
+#include <QFont>
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -63,6 +64,9 @@ void TestWindowUi::ledAlwaysFullScreen()
     // Cấu hình cũ có fullScreen=false vẫn phải đọc được nhưng không được
     // khiến LED hiện title bar hoặc ra khỏi chế độ toàn màn hình.
     AppConfig config = defaultAppConfig();
+    config.branding.branchName = QStringLiteral("Chi nhánh tổng công ty điện lực TKV - CTCP");
+    config.branding.address =
+        QStringLiteral("Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
     config.display.targetScreenName = QStringLiteral("Test LED");
     config.display.fullScreen = false;
     const QString configPath = temp.filePath(QStringLiteral("config.json"));
@@ -96,6 +100,29 @@ void TestWindowUi::ledAlwaysFullScreen()
     QVERIFY(board);
     QCOMPARE(board->width(), 1600.0);
     QCOMPARE(board->height(), 960.0);
+    auto *branch = findVisualItem(board, QStringLiteral("branchName"));
+    auto *company = findVisualItem(board, QStringLiteral("companyName"));
+    auto *address = findVisualItem(board, QStringLiteral("companyAddress"));
+    QVERIFY(branch);
+    QVERIFY(company);
+    QVERIFY(address);
+    QCOMPARE(branch->property("text").toString(),
+             QStringLiteral("CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP"));
+    QVERIFY(branch->property("font").value<QFont>().bold());
+    QCOMPARE(company->property("text").toString(),
+             QStringLiteral("CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV"));
+    QCOMPARE(address->property("text").toString(),
+             QStringLiteral("Ngõ 719 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên"));
+    QVERIFY2(branch->y() + branch->height() <= company->y(),
+             qPrintable(QStringLiteral("Chi nhánh: y=%1 h=%2, công ty: y=%3 h=%4")
+                            .arg(branch->y()).arg(branch->height()).arg(company->y()).arg(company->height())));
+    QVERIFY2(company->y() + company->height() <= address->y(),
+             qPrintable(QStringLiteral("Công ty: y=%1 h=%2, địa chỉ: y=%3 h=%4")
+                            .arg(company->y()).arg(company->height()).arg(address->y()).arg(address->height())));
+    QVERIFY(address->y() + address->height() <= address->parentItem()->height());
+    QVERIFY(!branch->property("truncated").toBool());
+    QVERIFY(!company->property("truncated").toBool());
+    QVERIFY(!address->property("truncated").toBool());
     for (int i = 0; i < 12; ++i) {
         auto *tile = findVisualItem(board, QStringLiteral("parameterTile_%1").arg(i));
         QVERIFY2(tile, qPrintable(QStringLiteral("Thiếu ô %1").arg(i)));
@@ -109,20 +136,29 @@ void TestWindowUi::ledAlwaysFullScreen()
     auto *range = flow->findChild<QQuickItem *>(QStringLiteral("measurementRange"));
     auto *value = flow->findChild<QQuickItem *>(QStringLiteral("readingValue"));
     auto *status = flow->findChild<QQuickItem *>(QStringLiteral("tileStatus"));
+    auto *frame = flow->findChild<QQuickItem *>(QStringLiteral("tileFrame"));
     QVERIFY(range);
     QVERIFY(value);
     QVERIFY(status);
-    QCOMPARE(range->property("text").toString(), QStringLiteral("(0 - 1.000.000 m³/h)"));
+    QVERIFY(frame);
+    QCOMPARE(range->property("text").toString(), QStringLiteral("(0 - 1000000 m³/h)"));
     auto *phRange = ph->findChild<QQuickItem *>(QStringLiteral("measurementRange"));
     QVERIFY(phRange);
-    QCOMPARE(phRange->property("text").toString(), QStringLiteral("(0 - 14)"));
+    QCOMPARE(phRange->property("text").toString(), QStringLiteral("(6 – 9)"));
     QVERIFY(flow->setProperty("valueText", QStringLiteral("1000000")));
     QTRY_VERIFY(value->property("contentWidth").toDouble() <= value->width() + 1);
     QTRY_VERIFY(range->property("contentWidth").toDouble() <= range->width() + 1);
     QVERIFY(flow->setProperty("stateKey", QStringLiteral("withinLimit")));
     QCOMPARE(status->property("text").toString(), QStringLiteral("ĐANG ĐO"));
+    QCOMPARE(value->property("color").value<QColor>(), QColor("#00E5FF"));
     QVERIFY(flow->setProperty("stateKey", QStringLiteral("exceedsLimit")));
     QVERIFY(status->property("text").toString().contains(QStringLiteral("VƯỢT NGƯỠNG")));
+    QCOMPARE(value->property("color").value<QColor>(), QColor("#FF5252"));
+    QCOMPARE(range->property("color").value<QColor>(), QColor("#00E5FF"));
+    QCOMPARE(frame->property("border").value<QObject *>()->property("color").value<QColor>(), QColor("#00E5FF"));
+    QVERIFY(flow->setProperty("stateKey", QStringLiteral("deviceFault")));
+    QCOMPARE(value->property("color").value<QColor>(), QColor("#FF5252"));
+    QCOMPARE(range->property("color").value<QColor>(), QColor("#FF5252"));
     QVERIFY(flow->setProperty("stateKey", QStringLiteral("unknownStatus")));
     QCOMPARE(status->property("text").toString(), QStringLiteral("LỖI TRẠNG THÁI"));
     auto *within = findVisualItem(board, QStringLiteral("legendWithin"));

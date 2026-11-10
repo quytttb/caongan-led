@@ -6,7 +6,7 @@ Mẫu đầy đủ: `sample-data/caongan-led.example.json`. Sao chép để th�
 
 Các nhóm chính:
 
-- `branding`: tên, chi nhánh, địa chỉ; không có form chỉnh thương hiệu. Footer màu cố định trong giao diện LED, không đọc các trường `footerNote`/`regulationText` cũ.
+- `branding`: tên, chi nhánh, địa chỉ; không có form chỉnh thương hiệu. Khi đọc cấu hình, địa chỉ mặc định cũ `Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên` được sửa thành ngõ 719; các địa chỉ khác được giữ nguyên. File không bị ghi lại chỉ vì đọc cấu hình, nhưng địa chỉ đã sửa sẽ được lưu khi cấu hình được lưu sau đó. Footer màu cố định trong giao diện LED, không đọc các trường `footerNote`/`regulationText` cũ.
 - `display`: `targetScreenName` là tên Qt, rỗng thì không mở LED công khai; bố cục logic 1600×960 theo tỉ lệ màn vật lý 1600×960 mm, không phải độ phân giải pixel đã xác minh. Các khung logic cũ 1920×1200 và 1920×1152 được đọc và chuyển sang bố cục mới. LED luôn toàn màn hình, không viền; `fullScreen` chỉ để tương thích. Tên màn không bảo đảm duy nhất hay bất biến.
 - `sources`: `id`, `folder` tuyệt đối hoặc rỗng, `stationCode`, `staleAfterSeconds` (mặc định 900), `futureToleranceSeconds` (120), `allowLegacyPrefix` (true), `groupedFiveColumn` (false), `recursive` và `maxDepth`. Mã `KHITO1`/`NUONT1` chỉ là ví dụ mặc định chưa xác nhận.
 - `channels`: 12 ID/thứ tự tại catalog, `sourceId`/`stationCode`, `aliases`, `unit`, `acceptedUnits`, `decimals`, `staleAfterSeconds`. Dải đo và ngưỡng cố định trong catalog; trường `threshold` của cấu hình cũ được bỏ qua. Giá trị bằng cận vẫn trong khoảng; so sánh trước làm tròn. Đơn vị cấu hình phải tương thích với ngưỡng cố định. Thay timeout ở form nguồn cũng cập nhật timeout các kênh thuộc nguồn.

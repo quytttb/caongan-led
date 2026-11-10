@@ -17,15 +17,14 @@ Item {
     function accentFor(key) {
         switch (key) {
         case "withinLimit":
-            return "#00E5FF"
         case "exceedsLimit":
-            return "#FF5252"
+            return "#00E5FF"
         case "deviceFault":
         case "conflict":
         case "calibrating":
         case "maintenance":
         case "unitMismatch":
-            return "#FFD60A"
+            return "#FF5252"
         case "stale":
         case "futureTimestamp":
         case "invalid":
@@ -37,6 +36,7 @@ Item {
     }
 
     Rectangle {
+        objectName: "tileFrame"
         anchors.fill: parent
         color: "#000000"
         radius: 6
@@ -49,7 +49,7 @@ Item {
         x: 14
         y: 4
         text: root.symbol
-        color: "#FFFFFF"
+        color: root.accentFor(root.stateKey)
         font.family: "Inter"
         font.pixelSize: 34
         font.bold: true
@@ -63,7 +63,7 @@ Item {
         y: 10
         width: 160
         text: root.unit
-        color: "#FFFFFF"
+        color: root.accentFor(root.stateKey)
         font.family: "Inter"
         font.pixelSize: 24
         horizontalAlignment: Text.AlignRight
@@ -79,7 +79,7 @@ Item {
         width: parent.width - 24
         height: 72
         text: root.valueText
-        color: root.accentFor(root.stateKey)
+        color: root.stateKey === "exceedsLimit" ? "#FF5252" : root.accentFor(root.stateKey)
         font.family: "Inter"
         font.pixelSize: 82
         font.bold: true
@@ -97,7 +97,7 @@ Item {
         width: parent.width - 24
         height: 27
         text: root.rangeText.length ? "(" + root.rangeText + ")" : ""
-        color: "#FFFFFF"
+        color: root.accentFor(root.stateKey)
         font.family: "Inter"
         font.pixelSize: 24
         minimumPixelSize: 14

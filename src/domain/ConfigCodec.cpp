@@ -127,6 +127,10 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
     parsed.branding.companyName = readString(branding, "companyName");
     parsed.branding.branchName = readString(branding, "branchName");
     parsed.branding.address = readString(branding, "address");
+    // Chỉ sửa địa chỉ mặc định của bản cũ; giữ nguyên địa chỉ tùy chỉnh.
+    if (parsed.branding.address == QStringLiteral("Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên")) {
+        parsed.branding.address = QStringLiteral("Ngõ 719 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
+    }
     const QJsonObject display = object.value(QStringLiteral("display")).toObject();
     parsed.display.targetScreenName = readString(display, "targetScreenName");
     parsed.display.fullScreen = readBool(display, "fullScreen", true);

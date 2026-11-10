@@ -553,6 +553,8 @@ void TestReadingStore::restoredConflictAndWrongStation()
 void TestReadingStore::formattingHelpers()
 {
     QCOMPARE(formatReadingValue(1.234, 2), QStringLiteral("1.23"));
+    QCOMPARE(formatReadingValue(19.26, 2), QStringLiteral("19.26"));
+    QCOMPARE(formatReadingValue(1234567.89, 2), QStringLiteral("1234567.89"));
     QCOMPARE(formatReadingValue(1.0, 0), QStringLiteral("1"));
     QCOMPARE(formatReadingValue(1.0, -1), QStringLiteral("1"));
     QCOMPARE(formatReadingValue(1.0, 9), QStringLiteral("1.000000"));
