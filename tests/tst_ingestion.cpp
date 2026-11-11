@@ -45,6 +45,7 @@ private slots:
     void rejectedNameDoesNotPoisonValidCopy();
     void conflictSurvivesRestart();
     void maintenanceSurvivesRestart();
+    void thresholdReloadReevaluatesCurrentReading();
 };
 
 void TestIngestion::batchesEventuallyReachEveryFile()
@@ -226,6 +227,44 @@ void TestIngestion::maintenanceSurvivesRestart()
     QFile original(temp.filePath("input/" + fileName));
     QVERIFY(original.open(QIODevice::ReadOnly));
     QCOMPARE(original.readAll(), input);
+}
+
+void TestIngestion::thresholdReloadReevaluatesCurrentReading()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    QVERIFY(QDir().mkpath(temp.filePath("input")));
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    const QString timestamp = tt10::formatTimestamp(now.addSecs(-30));
+    const QString fileName = QStringLiteral("TNg_NDCN_KHITO1_%1.txt").arg(timestamp);
+    const QByteArray input = QStringLiteral("CO\t46\tmg/Nm3\t%1\t00\n").arg(timestamp).toUtf8();
+    QVERIFY(writeInput(temp.filePath("input/" + fileName), input, now));
+
+    AppConfig config = defaultAppConfig();
+    config.sources[0].folder = temp.filePath("input");
+    IngestionService service;
+    QSignalSpy statesSpy(&service, &IngestionService::channelsChanged);
+    service.start(config, temp.filePath("snapshot.db"));
+    QTest::qWait(1300);
+    scanNow(service);
+
+    const auto coState = [&statesSpy]() {
+        const auto states = qvariant_cast<QVector<ChannelState>>(statesSpy.constLast().at(0));
+        for (const ChannelState &state : states) {
+            if (state.config.id == QLatin1String("co"))
+                return state;
+        }
+        return ChannelState{};
+    };
+    QVERIFY(!statesSpy.isEmpty());
+    QVERIFY(coState().hasReading);
+    QCOMPARE(coState().display, DisplayState::WithinLimit);
+    config.channelById(QStringLiteral("co"))->threshold.high = 30;
+    service.reloadConfig(config);
+    QVERIFY(coState().hasReading);
+    QCOMPARE(coState().display, DisplayState::ExceedsLimit);
+    QCOMPARE(coState().reading.rawValue, QStringLiteral("46"));
+    service.shutdown();
 }
 
 QTEST_GUILESS_MAIN(TestIngestion)

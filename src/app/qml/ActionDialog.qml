@@ -16,12 +16,27 @@ Dialog {
     focus: true
     title: "Xác nhận thay đổi"
     standardButtons: Dialog.Ok | Dialog.Cancel
+    background: Rectangle {
+        color: AppColors.surfaceContainerLow
+        radius: 8
+        border.color: AppColors.elevatedBorder
+    }
+    Overlay.modal: Rectangle { color: "#99000000" }
 
     function ask(titleText, detail, action) {
         root.title = titleText
         root.detailText = detail
         root.pendingAction = action
         root.open()
+    }
+
+    onOpened: {
+        const confirm = root.standardButton(Dialog.Ok)
+        const cancel = root.standardButton(Dialog.Cancel)
+        if (confirm)
+            confirm.text = "Xác nhận"
+        if (cancel)
+            cancel.text = "Hủy"
     }
 
     onAccepted: {

@@ -28,8 +28,63 @@ ApplicationWindow {
     Material.foreground: AppColors.primaryText
 
     property int pageIndex: 0
+    property bool exitConfirmed: false
 
-    onClosing: app.quit()
+    onClosing: function(close) {
+        if (exitConfirmed) {
+            app.quit()
+        } else {
+            close.accepted = false
+            exitDialog.open()
+        }
+    }
+
+    Dialog {
+        id: exitDialog
+        objectName: "exitConfirmationDialog"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(560, parent ? parent.width - 48 : 560)
+        implicitHeight: 220
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape
+        title: "Xác nhận thoát ứng dụng"
+        background: Rectangle {
+            color: AppColors.surfaceContainerLow
+            radius: 8
+            border.color: AppColors.elevatedBorder
+        }
+        Overlay.modal: Rectangle { color: "#99000000" }
+
+        contentItem: Text {
+            text: "Thoát ứng dụng sẽ dừng hiển thị trên màn hình LED. Bạn có chắc chắn muốn thoát?"
+            color: AppColors.primaryText
+            font.family: "Inter"
+            font.pixelSize: 15
+            wrapMode: Text.WordWrap
+            padding: 4
+        }
+
+        footer: DialogButtonBox {
+            Button {
+                objectName: "cancelExitButton"
+                text: "Hủy"
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+            }
+            Button {
+                objectName: "confirmExitButton"
+                text: "Thoát ứng dụng"
+                highlighted: true
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+            }
+        }
+
+        onAccepted: {
+            win.exitConfirmed = true
+            win.close()
+        }
+    }
 
     function toggleMaximize() {
         if (visibility === Window.Maximized)

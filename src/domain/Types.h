@@ -123,12 +123,12 @@ struct ChannelConfig {
     QString sourceId;
     QString stationCode;
     int decimals = 1;
-    Threshold threshold;       // Ngưỡng cố định theo dải đo / quy chuẩn, không cho sửa tại chỗ.
+    Threshold threshold;       // Ngưỡng cảnh báo có thể chỉnh, độc lập với dải đo.
     int staleAfterSeconds = 900;
 };
 
 struct AppConfig {
-    int schemaVersion = 1;
+    int schemaVersion = 2;
     BrandingConfig branding;
     DisplayConfig display;
     StorageConfig storage;

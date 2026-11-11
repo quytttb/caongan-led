@@ -9,7 +9,7 @@
 3. Đổi tình huống trong Simulator; lần ghi tiếp theo áp dụng cảnh mới. **Ghi ngay** ghi một bộ, **Dừng** dừng phát; đóng cửa sổ cũng dừng. Công cụ tự dừng sau 120 lần ghi và giới hạn 1.000 file mỗi nguồn; không tự xóa file.
 4. Màn LED không tự gắn nhãn dữ liệu giả. Dùng riêng màn và cấu hình thử, không đưa thư mục test sang cấu hình thật.
 
-Tình huống có sẵn: bình thường, giá trị cao, hiệu chuẩn `01`, lỗi thiết bị `02`, dữ liệu cũ, thiếu pH, PM sai đơn vị, xung đột SO₂ cùng timestamp, Flow 6 chữ số và trạng thái lạ `03`. Hai cảnh **dữ liệu cũ/thiếu pH** cố ý ngừng gửi kênh tương ứng: hãy gửi bình thường trước, chuyển cảnh rồi chờ timeout; sandbox cài sẵn dùng 15 giây. So sánh giá trị thử với ngưỡng cố định trong catalog; không sửa ngưỡng trong cửa sổ vận hành.
+Tình huống có sẵn: bình thường, giá trị cao, hiệu chuẩn `01`, lỗi thiết bị `02`, dữ liệu cũ, thiếu pH, PM sai đơn vị, xung đột SO₂ cùng timestamp, Flow 6 chữ số và trạng thái lạ `03`. Hai cảnh **dữ liệu cũ/thiếu pH** cố ý ngừng gửi kênh tương ứng: hãy gửi bình thường trước, chuyển cảnh rồi chờ timeout; sandbox cài sẵn dùng 15 giây. So sánh giá trị thử với ngưỡng đang cấu hình; chỉ sửa ngưỡng trong môi trường thử cô lập.
 
 ## Chạy từ mã nguồn
 

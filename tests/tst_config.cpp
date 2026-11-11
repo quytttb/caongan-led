@@ -13,6 +13,8 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <limits>
+
 using namespace caongan;
 
 namespace {
@@ -64,6 +66,10 @@ private slots:
     void stationMismatchRejected();
     void duplicateAliasRejected();
     void thresholdValidation();
+    void legacyThresholdsIgnored();
+    void thresholdJsonValidation();
+    void legacyThresholdFileMigratesAndBacksUp();
+    void invalidThresholdRecoversFromBackup();
     void fixedThresholds_data();
     void fixedThresholds();
     void oldDisplayConfigMigrates();
@@ -143,6 +149,8 @@ void TestConfig::jsonRoundTrip()
     config.display.targetScreenName = QStringLiteral("LED-1");
     config.display.fullScreen = false;
     config.sources[0].folder = QStringLiteral("/tmp/khong-gui");
+    config.channelById(QStringLiteral("co"))->threshold.low = -1.5;
+    config.channelById(QStringLiteral("co"))->threshold.high = 512.75;
 
     const QJsonObject original = configToJson(config);
     AppConfig parsed;
@@ -152,11 +160,12 @@ void TestConfig::jsonRoundTrip()
     QCOMPARE(configToJson(parsed), original);
     QCOMPARE(parsed.display.targetScreenName, QStringLiteral("LED-1"));
     QVERIFY(!parsed.display.fullScreen);
-    // Ngưỡng và dải đo cố định: đọc lại luôn ép về danh mục chuẩn.
+    // Ngưỡng người vận hành lưu được giữ; dải đo vẫn lấy từ danh mục.
     ChannelConfig *parsedCo = parsed.channelById(QStringLiteral("co"));
     QVERIFY(parsedCo);
     QVERIFY(parsedCo->threshold.enabled);
-    QCOMPARE(parsedCo->threshold.high, 1500.0);
+    QCOMPARE(parsedCo->threshold.low, -1.5);
+    QCOMPARE(parsedCo->threshold.high, 512.75);
     QVERIFY(!parsedCo->rangeText.isEmpty());
 }
 
@@ -201,7 +210,7 @@ void TestConfig::legacyAddressCorrected()
 void TestConfig::schemaVersionRejected()
 {
     QJsonObject object = configToJson(defaultAppConfig());
-    object.insert(QStringLiteral("schemaVersion"), 2);
+    object.insert(QStringLiteral("schemaVersion"), 3);
     AppConfig parsed;
     QStringList errors;
     QVERIFY(!configFromJson(object, parsed, &errors));
@@ -273,21 +282,160 @@ void TestConfig::duplicateAliasRejected()
 
 void TestConfig::thresholdValidation()
 {
-    // Ngưỡng đã cố định theo nhà máy, không còn validate bật/tắt hay nhập cận.
-    const AppConfig config = defaultAppConfig();
+    AppConfig config = defaultAppConfig();
     const ChannelConfig *co = config.channelById(QStringLiteral("co"));
     QVERIFY(co);
     QVERIFY(co->threshold.enabled);
     QVERIFY(co->threshold.hasLow);
     QVERIFY(co->threshold.hasHigh);
     QCOMPARE(co->threshold.low, 0.0);
-    QCOMPARE(co->threshold.high, 1500.0);
+    QCOMPARE(co->threshold.high, 480.0);
     QCOMPARE(co->rangeText, QStringLiteral("0 - 1500 mg/Nm³"));
     const ChannelConfig *ph = config.channelById(QStringLiteral("ph"));
     QVERIFY(ph);
     QCOMPARE(ph->threshold.low, 6.0);
     QCOMPARE(ph->threshold.high, 9.0);
     QVERIFY(validateConfig(config).isEmpty());
+
+    ChannelConfig *editableCo = config.channelById(QStringLiteral("co"));
+    editableCo->threshold.low = 100;
+    editableCo->threshold.high = 99;
+    QVERIFY(hasIssueField(validateConfig(config), QStringLiteral("channels.co.threshold")));
+    editableCo->threshold.high = 100;
+    QVERIFY(validateConfig(config).isEmpty()); // Cận bằng nhau vẫn hợp lệ.
+    editableCo->threshold.high = std::numeric_limits<double>::infinity();
+    QVERIFY(hasIssueField(validateConfig(config), QStringLiteral("channels.co.threshold")));
+    editableCo->threshold.high = std::numeric_limits<double>::quiet_NaN();
+    QVERIFY(hasIssueField(validateConfig(config), QStringLiteral("channels.co.threshold")));
+    editableCo->threshold.high = 200;
+    editableCo->threshold.hasLow = false;
+    QVERIFY(hasIssueField(validateConfig(config), QStringLiteral("channels.co.threshold")));
+}
+
+void TestConfig::legacyThresholdsIgnored()
+{
+    QJsonObject json = configToJson(defaultAppConfig());
+    json.insert(QStringLiteral("schemaVersion"), 1);
+    QJsonArray channels = json.value(QStringLiteral("channels")).toArray();
+    QJsonObject co = channels.at(1).toObject();
+    co.insert(QStringLiteral("threshold"), QJsonObject{{QStringLiteral("enabled"), false},
+                                                        {QStringLiteral("low"), 1},
+                                                        {QStringLiteral("high"), 3}});
+    channels.replace(1, co);
+    json.insert(QStringLiteral("channels"), channels);
+    AppConfig parsed;
+    QStringList errors;
+    QVERIFY2(configFromJson(json, parsed, &errors), qPrintable(errors.join("\n")));
+    QCOMPARE(parsed.schemaVersion, 2);
+    QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.low, 0.0);
+    QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.high, 480.0);
+    QVERIFY(validateConfig(parsed).isEmpty());
+}
+
+void TestConfig::thresholdJsonValidation()
+{
+    const QJsonObject original = configToJson(defaultAppConfig());
+    for (const QJsonValue &bad : {QJsonValue(), QJsonValue(QJsonValue::Null),
+                                   QJsonValue(QStringLiteral("3"))}) {
+        QJsonObject json = original;
+        QJsonArray channels = json.value(QStringLiteral("channels")).toArray();
+        QJsonObject co = channels.at(1).toObject();
+        QJsonObject threshold = co.value(QStringLiteral("threshold")).toObject();
+        threshold.insert(QStringLiteral("high"), bad);
+        co.insert(QStringLiteral("threshold"), threshold);
+        channels.replace(1, co);
+        json.insert(QStringLiteral("channels"), channels);
+        AppConfig parsed;
+        QStringList errors;
+        QVERIFY(!configFromJson(json, parsed, &errors));
+        QVERIFY(errors.join(QStringLiteral("; ")).contains(QStringLiteral("co")));
+    }
+
+    QJsonObject json = original;
+    QJsonArray channels = json.value(QStringLiteral("channels")).toArray();
+    QJsonObject co = channels.at(1).toObject();
+    co.remove(QStringLiteral("threshold"));
+    channels.replace(1, co);
+    json.insert(QStringLiteral("channels"), channels);
+    AppConfig parsed;
+    QVERIFY(!configFromJson(json, parsed));
+}
+
+void TestConfig::legacyThresholdFileMigratesAndBacksUp()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("config.json"));
+    AppConfig initial = defaultAppConfig();
+    initial.sources[0].folder = dir.filePath(QStringLiteral("input"));
+    initial.display.targetScreenName = QStringLiteral("LED-1");
+    QJsonObject json = configToJson(initial);
+    json.insert(QStringLiteral("schemaVersion"), 1);
+    QJsonArray channels = json.value(QStringLiteral("channels")).toArray();
+    QJsonObject co = channels.at(1).toObject();
+    co.insert(QStringLiteral("threshold"), QJsonObject{{QStringLiteral("low"), 5},
+                                                        {QStringLiteral("high"), 6}});
+    channels.replace(1, co);
+    json.insert(QStringLiteral("channels"), channels);
+    const QByteArray legacy = QJsonDocument(json).toJson();
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(legacy), legacy.size());
+    file.close();
+
+    ConfigStore store(path);
+    AppConfig loaded;
+    QCOMPARE(store.load(loaded), ConfigStore::LoadStatus::Loaded);
+    QCOMPARE(readAll(path), legacy); // Đọc V1 không tự ghi đè.
+    QCOMPARE(loaded.sources[0].folder, initial.sources[0].folder);
+    QCOMPARE(loaded.display.targetScreenName, QStringLiteral("LED-1"));
+    QCOMPARE(loaded.channelById(QStringLiteral("co"))->threshold.high, 480.0);
+    loaded.channelById(QStringLiteral("co"))->threshold.high = 400;
+    QString error;
+    QVERIFY2(store.save(loaded, &error), qPrintable(error));
+
+    AppConfig reloaded;
+    QCOMPARE(store.load(reloaded), ConfigStore::LoadStatus::Loaded);
+    QCOMPARE(reloaded.schemaVersion, 2);
+    QCOMPARE(reloaded.channelById(QStringLiteral("co"))->threshold.high, 400.0);
+    ConfigStore backup(store.backupPath());
+    AppConfig previous;
+    QCOMPARE(backup.load(previous), ConfigStore::LoadStatus::Loaded);
+    QCOMPARE(previous.channelById(QStringLiteral("co"))->threshold.high, 480.0);
+    QCOMPARE(previous.sources[0].folder, initial.sources[0].folder);
+}
+
+void TestConfig::invalidThresholdRecoversFromBackup()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("config.json"));
+    ConfigStore store(path);
+    AppConfig config;
+    QCOMPARE(store.load(config), ConfigStore::LoadStatus::CreatedDefault);
+    config.channelById(QStringLiteral("co"))->threshold.high = 400;
+    QString error;
+    QVERIFY2(store.save(config, &error), qPrintable(error));
+
+    QJsonObject invalid = configToJson(config);
+    QJsonArray channels = invalid.value(QStringLiteral("channels")).toArray();
+    QJsonObject co = channels.at(1).toObject();
+    co.insert(QStringLiteral("threshold"), QJsonObject{{QStringLiteral("low"), 100},
+                                                        {QStringLiteral("high"), 10}});
+    channels.replace(1, co);
+    invalid.insert(QStringLiteral("channels"), channels);
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    const QByteArray bytes = QJsonDocument(invalid).toJson();
+    QCOMPARE(file.write(bytes), bytes.size());
+    file.close();
+
+    AppConfig recovered;
+    QStringList messages;
+    QCOMPARE(store.load(recovered, &messages), ConfigStore::LoadStatus::RecoveredFromBackup);
+    QCOMPARE(recovered.channelById(QStringLiteral("co"))->threshold.high, 480.0);
+    QVERIFY(!messages.isEmpty());
+    QCOMPARE(readAll(path), bytes); // Không tự ghi đè file lỗi.
 }
 
 void TestConfig::fixedThresholds_data()
@@ -296,14 +444,14 @@ void TestConfig::fixedThresholds_data()
     QTest::addColumn<double>("low");
     QTest::addColumn<double>("high");
     QTest::addColumn<QString>("range");
-    QTest::newRow("O2") << QStringLiteral("o2") << 0.0 << 25.0 << QStringLiteral("0 - 25 %V");
-    QTest::newRow("CO") << QStringLiteral("co") << 0.0 << 1500.0 << QStringLiteral("0 - 1500 mg/Nm³");
-    QTest::newRow("NOx") << QStringLiteral("nox") << 0.0 << 1500.0 << QStringLiteral("0 - 1500 mg/Nm³");
-    QTest::newRow("SO2") << QStringLiteral("so2") << 0.0 << 1000.0 << QStringLiteral("0 - 1000 mg/Nm³");
-    QTest::newRow("PM") << QStringLiteral("pm") << 0.0 << 1000.0 << QStringLiteral("0 - 1000 mg/Nm³");
-    QTest::newRow("Temp") << QStringLiteral("temp_flue") << 0.0 << 500.0 << QStringLiteral("0 - 500 °C");
+    QTest::newRow("O2") << QStringLiteral("o2") << 0.0 << 15.0 << QStringLiteral("0 - 25 %V");
+    QTest::newRow("CO") << QStringLiteral("co") << 0.0 << 480.0 << QStringLiteral("0 - 1500 mg/Nm³");
+    QTest::newRow("NOx") << QStringLiteral("nox") << 0.0 << 390.0 << QStringLiteral("0 - 1500 mg/Nm³");
+    QTest::newRow("SO2") << QStringLiteral("so2") << 0.0 << 300.0 << QStringLiteral("0 - 1000 mg/Nm³");
+    QTest::newRow("PM") << QStringLiteral("pm") << 0.0 << 120.0 << QStringLiteral("0 - 1000 mg/Nm³");
+    QTest::newRow("Temp") << QStringLiteral("temp_flue") << 0.0 << 200.0 << QStringLiteral("0 - 500 °C");
     QTest::newRow("Flow") << QStringLiteral("flow_flue") << 0.0 << 1000000.0 << QStringLiteral("0 - 1000000 m³/h");
-    QTest::newRow("P") << QStringLiteral("pressure_flue") << 0.0 << 160.0 << QStringLiteral("0 - 160 kPa");
+    QTest::newRow("P") << QStringLiteral("pressure_flue") << 80.0 << 250.0 << QStringLiteral("0 - 160 kPa");
     QTest::newRow("pH") << QStringLiteral("ph") << 6.0 << 9.0 << QStringLiteral("0 - 14");
     QTest::newRow("TSS") << QStringLiteral("tss") << 0.0 << 55.0 << QStringLiteral("0 - 55 mg/L");
     QTest::newRow("COD") << QStringLiteral("cod") << 0.0 << 82.5 << QStringLiteral("0 - 82.5 mg/L");
@@ -340,6 +488,7 @@ void TestConfig::oldDisplayConfigMigrates()
 {
     for (const int oldHeight : {1200, 1152, 960}) {
         QJsonObject json = configToJson(defaultAppConfig());
+        json.insert(QStringLiteral("schemaVersion"), 1);
         QJsonObject display = json.value(QStringLiteral("display")).toObject();
         display.insert(QStringLiteral("designWidth"), 1920);
         display.insert(QStringLiteral("designHeight"), oldHeight);
@@ -357,7 +506,7 @@ void TestConfig::oldDisplayConfigMigrates()
         QCOMPARE(parsed.display.designHeight, 960);
         QCOMPARE(parsed.display.targetScreenName, QStringLiteral("LED-1"));
         QVERIFY(parsed.channelById(QStringLiteral("co"))->threshold.enabled);
-        QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.high, 1500.0);
+        QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.high, 480.0);
         QVERIFY(validateConfig(parsed).isEmpty());
     }
 }
@@ -409,7 +558,7 @@ void TestConfig::storeCreatesDefault()
     QCOMPARE(store.load(config, &messages), ConfigStore::LoadStatus::CreatedDefault);
     QVERIFY(store.exists());
     QVERIFY(QFileInfo::exists(path));
-    QCOMPARE(config.schemaVersion, 1);
+    QCOMPARE(config.schemaVersion, 2);
     QVERIFY(messages.isEmpty());
 
     AppConfig loaded;
@@ -515,7 +664,7 @@ void TestConfig::storeFailsWhenMainAndBackupBroken()
     QStringList messages;
     AppConfig loaded;
     QCOMPARE(store.load(loaded, &messages), ConfigStore::LoadStatus::Failed);
-    QCOMPARE(loaded.schemaVersion, 1);
+    QCOMPARE(loaded.schemaVersion, 2);
     QVERIFY(!messages.isEmpty());
 }
 

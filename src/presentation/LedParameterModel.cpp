@@ -4,6 +4,8 @@
 #include "domain/ParameterCatalog.h"
 #include "domain/Tt10Time.h"
 
+#include <QLocale>
+
 namespace caongan {
 
 LedParameterModel::LedParameterModel(QObject *parent)
@@ -42,7 +44,20 @@ QVariant LedParameterModel::data(const QModelIndex &index, int role) const
     case ThresholdTextRole: {
         if (!state.config.threshold.configured())
             return QStringLiteral("Chưa đặt ngưỡng");
-        return formatThreshold(state.config.threshold, state.config.id == QStringLiteral("ph") ? 0 : state.config.decimals);
+        // pH hiển thị ngưỡng ngay trên LED: không làm tròn mất phần thập phân
+        // của ngưỡng người vận hành vừa lưu.
+        if (state.config.id == QStringLiteral("ph")) {
+            const Threshold &threshold = state.config.threshold;
+            const auto number = [](double value) {
+                return QString::number(value, 'f', QLocale::FloatingPointShortest);
+            };
+            if (threshold.hasLow && threshold.hasHigh)
+                return QStringLiteral("%1 – %2").arg(number(threshold.low), number(threshold.high));
+            if (threshold.hasHigh)
+                return QStringLiteral("≤ %1").arg(number(threshold.high));
+            return QStringLiteral("≥ %1").arg(number(threshold.low));
+        }
+        return formatThreshold(state.config.threshold, state.config.decimals);
     }
     case SourceNameRole:    return state.sourceName;
     case HasReadingRole:    return state.hasReading;

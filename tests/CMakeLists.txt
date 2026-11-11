@@ -40,7 +40,7 @@ qt_add_resources(tst_window_ui "test_brand"
     FILES "${PROJECT_SOURCE_DIR}/resources/factory-logo.jpg")
 set_tests_properties(tst_window_ui PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json")
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json;QT_QUICK_CONTROLS_STYLE=Material")
 set_tests_properties(tst_presentation PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-data"

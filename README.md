@@ -22,7 +22,9 @@ LED luôn toàn màn hình, không viền; bố cục giữ tỉ lệ 5:3 nên c
 
 Trang **Nhật ký** trong cửa sổ vận hành cho phép chọn log hiện tại hoặc log đã xoay vòng, làm mới, sao chép nội dung đang xem và xuất toàn bộ tệp. Màn xem giới hạn 1 MiB cuối; tệp xuất tối đa 64 MiB. Log có thể chứa đường dẫn, giá trị và trạng thái kênh, cần kiểm tra trước khi chia sẻ.
 
-Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule update --init --recursive` sau khi clone. Mẫu cấu hình [sample-data/caongan-led.example.json](sample-data/caongan-led.example.json) có thư mục nguồn trống và chưa chọn màn; dải đo và ngưỡng cố định lấy từ catalog. File tại `sample-data/inputs/` là dữ liệu **giả**, mốc cố định 01/01/2026 và sẽ hiển thị cũ khi vượt timeout. Để thử đọc file, dùng bản sao thư mục thử và cấu hình đường dẫn tuyệt đối; đừng đưa mẫu lên LED công khai như dữ liệu thật.
+Trang **Ngưỡng & dải đo** cho sửa ngưỡng cảnh báo dưới/trên từng kênh, kiểm tra số hợp lệ và yêu cầu xác nhận trước khi lưu. Ngưỡng mới được áp dụng và lưu qua lần khởi động sau; dải đo không thay đổi. Ngưỡng mặc định lấy từ máy cũ, cần nhà máy xác nhận. Đóng cửa sổ vận hành bằng X sẽ hỏi xác nhận trước khi thoát cả ứng dụng.
+
+Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule update --init --recursive` sau khi clone. Mẫu cấu hình [sample-data/caongan-led.example.json](sample-data/caongan-led.example.json) có thư mục nguồn trống, chưa chọn màn và dùng ngưỡng mặc định từ catalog. File tại `sample-data/inputs/` là dữ liệu **giả**, mốc cố định 01/01/2026 và sẽ hiển thị cũ khi vượt timeout. Để thử đọc file, dùng bản sao thư mục thử và cấu hình đường dẫn tuyệt đối; đừng đưa mẫu lên LED công khai như dữ liệu thật.
 
 ## Tài liệu
 

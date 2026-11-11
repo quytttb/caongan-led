@@ -6,6 +6,8 @@
 #include <QDir>
 #include <QSet>
 
+#include <cmath>
+
 namespace caongan {
 
 namespace {
@@ -103,6 +105,10 @@ QJsonObject configToJson(const AppConfig &config)
         obj.insert(QStringLiteral("stationCode"), channel.stationCode);
         obj.insert(QStringLiteral("decimals"), channel.decimals);
         obj.insert(QStringLiteral("staleAfterSeconds"), channel.staleAfterSeconds);
+        QJsonObject threshold;
+        threshold.insert(QStringLiteral("low"), channel.threshold.low);
+        threshold.insert(QStringLiteral("high"), channel.threshold.high);
+        obj.insert(QStringLiteral("threshold"), threshold);
         channels.append(obj);
     }
     root.insert(QStringLiteral("channels"), channels);
@@ -113,15 +119,18 @@ QJsonObject configToJson(const AppConfig &config)
 bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *errors)
 {
     QStringList localErrors;
-    if (object.value(QStringLiteral("schemaVersion")).toInt(-1) != 1) {
-        localErrors.append(QStringLiteral("schemaVersion phải là 1"));
+    const int inputVersion = object.value(QStringLiteral("schemaVersion")).toInt(-1);
+    if (inputVersion != 1 && inputVersion != 2) {
+        localErrors.append(QStringLiteral("schemaVersion phải là 1 hoặc 2"));
         if (errors)
             *errors = localErrors;
         return false;
     }
 
     AppConfig parsed;
-    parsed.schemaVersion = 1;
+    // V1 từng bỏ qua threshold trong JSON. Không phục hồi các ngưỡng cũ đã bị
+    // bỏ qua; chỉ V2 mới chứa ngưỡng do người vận hành lưu có chủ đích.
+    parsed.schemaVersion = 2;
 
     const QJsonObject branding = object.value(QStringLiteral("branding")).toObject();
     parsed.branding.companyName = readString(branding, "companyName");
@@ -146,8 +155,7 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
         parsed.display.designHeight = 960;
     }
 
-    // Ngưỡng và dải đo là cố định theo nhà máy: bỏ qua mọi giá trị
-    // threshold/range trong file cấu hình cũ, áp lại từ danh mục chuẩn.
+    // Dải đo vẫn cố định. Ngưỡng V1 lấy theo danh mục hiện tại; V2 đọc từ file.
     QHash<QString, ChannelConfig> fixed;
     for (const ChannelConfig &standard : defaultChannels())
         fixed.insert(standard.id, standard);
@@ -203,16 +211,28 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
         channel.stationCode = readString(obj, "stationCode");
         channel.decimals = readInt(obj, "decimals", 1);
         channel.staleAfterSeconds = readInt(obj, "staleAfterSeconds", 900);
-        // Bỏ qua threshold trong file: ngưỡng lấy từ danh mục cố định.
-        parsed.channels.append(channel);
-    }
-
-    for (ChannelConfig &channel : parsed.channels) {
-        auto it = fixed.find(channel.id);
-        if (it != fixed.end()) {
-            channel.threshold = it->threshold;
-            channel.rangeText = it->rangeText;
+        const auto standard = fixed.constFind(channel.id);
+        if (standard != fixed.cend()) {
+            channel.threshold = standard->threshold;
+            channel.rangeText = standard->rangeText;
         }
+        if (inputVersion == 2) {
+            const QJsonValue thresholdValue = obj.value(QStringLiteral("threshold"));
+            const QJsonObject threshold = thresholdValue.toObject();
+            const QJsonValue low = threshold.value(QStringLiteral("low"));
+            const QJsonValue high = threshold.value(QStringLiteral("high"));
+            if (!thresholdValue.isObject() || !low.isDouble() || !high.isDouble()
+                || !std::isfinite(low.toDouble()) || !std::isfinite(high.toDouble())) {
+                localErrors.append(QStringLiteral("Kênh %1: ngưỡng dưới và trên phải là số hữu hạn").arg(channel.id));
+            } else {
+                channel.threshold.enabled = true;
+                channel.threshold.hasLow = true;
+                channel.threshold.low = low.toDouble();
+                channel.threshold.hasHigh = true;
+                channel.threshold.high = high.toDouble();
+            }
+        }
+        parsed.channels.append(channel);
     }
 
     if (!localErrors.isEmpty()) {
@@ -229,8 +249,8 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
 QList<ConfigIssue> validateConfig(const AppConfig &config)
 {
     QList<ConfigIssue> issues;
-    if (config.schemaVersion != 1)
-        issues.append({QStringLiteral("schemaVersion"), QStringLiteral("Chỉ hỗ trợ schemaVersion = 1")});
+    if (config.schemaVersion != 2)
+        issues.append({QStringLiteral("schemaVersion"), QStringLiteral("Cấu hình hiện hành phải có schemaVersion = 2")});
 
     if (config.display.designWidth != 1600 || config.display.designHeight != 960) {
         issues.append({QStringLiteral("display.designWidth/Height"),
@@ -317,11 +337,11 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
         if (fixed != fixedChannels.cend()) {
             if (normalizeUnit(channel.unit) != normalizeUnit(fixed->unit))
                 issues.append({prefix + QStringLiteral(".unit"),
-                               QStringLiteral("Đơn vị phải khớp với ngưỡng cố định: %1").arg(fixed->unit)});
+                               QStringLiteral("Đơn vị phải khớp với đơn vị kênh: %1").arg(fixed->unit)});
             for (const QString &unit : channel.acceptedUnits) {
                 if (!unitAccepted(*fixed, unit))
                     issues.append({prefix + QStringLiteral(".acceptedUnits"),
-                                   QStringLiteral("Đơn vị %1 không tương thích với ngưỡng cố định").arg(unit)});
+                                   QStringLiteral("Đơn vị %1 không tương thích với đơn vị kênh").arg(unit)});
             }
         }
         if (channel.decimals < 0 || channel.decimals > 6)
@@ -330,7 +350,14 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
         if (channel.staleAfterSeconds < 10)
             issues.append({prefix + QStringLiteral(".staleAfterSeconds"),
                            QStringLiteral("staleAfterSeconds phải >= 10")});
-
+        if (!channel.threshold.enabled || !channel.threshold.hasLow || !channel.threshold.hasHigh
+            || !std::isfinite(channel.threshold.low) || !std::isfinite(channel.threshold.high)) {
+            issues.append({prefix + QStringLiteral(".threshold"),
+                           QStringLiteral("Ngưỡng dưới và trên phải là số hữu hạn")});
+        } else if (channel.threshold.low > channel.threshold.high) {
+            issues.append({prefix + QStringLiteral(".threshold"),
+                           QStringLiteral("Ngưỡng dưới không được lớn hơn ngưỡng trên")});
+        }
     }
 
     for (const QString &id : canonical) {

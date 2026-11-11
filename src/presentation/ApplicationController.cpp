@@ -20,12 +20,14 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QScreen>
 #include <QUrl>
 
+#include <cmath>
 #include <utility>
 
 namespace caongan {
@@ -33,6 +35,22 @@ namespace caongan {
 namespace {
 constexpr qint64 kLogPreviewBytes = 1024 * 1024;
 constexpr qint64 kLogExportMaxBytes = 64 * 1024 * 1024;
+
+QString thresholdNumber(double value)
+{
+    return QString::number(value, 'f', QLocale::FloatingPointShortest);
+}
+
+bool parseThresholdNumber(const QString &text, double *value)
+{
+    bool ok = false;
+    const double parsed = text.trimmed().toDouble(&ok);
+    if (!ok || !std::isfinite(parsed))
+        return false;
+    if (value)
+        *value = parsed;
+    return true;
+}
 
 QString canonicalDestination(const QString &path)
 {
@@ -321,11 +339,11 @@ QVariantList ApplicationController::channelSettings() const
         map.insert(QStringLiteral("rangeText"), channel.rangeText);
         map.insert(QStringLiteral("thresholdLow"),
                    channel.threshold.hasLow
-                       ? QString::number(channel.threshold.low, 'g', 15)
+                       ? thresholdNumber(channel.threshold.low)
                        : QString());
         map.insert(QStringLiteral("thresholdHigh"),
                    channel.threshold.hasHigh
-                       ? QString::number(channel.threshold.high, 'g', 15)
+                       ? thresholdNumber(channel.threshold.high)
                        : QString());
         map.insert(QStringLiteral("staleSeconds"), channel.staleAfterSeconds);
         list.append(map);
@@ -449,6 +467,53 @@ QString ApplicationController::updateSource(const QString &id,
         return QStringLiteral("Không tìm thấy nguồn %1").arg(id);
 
     return commitConfiguration(next, true);
+}
+
+QString ApplicationController::validateThreshold(const QString &id,
+                                                 const QString &lowText,
+                                                 const QString &highText) const
+{
+    if (!m_config.channelById(id))
+        return QStringLiteral("Không tìm thấy thông số %1").arg(id);
+
+    double low = 0.0;
+    double high = 0.0;
+    if (!parseThresholdNumber(lowText, &low) || !parseThresholdNumber(highText, &high))
+        return QStringLiteral("Ngưỡng dưới và trên phải là số hữu hạn; dùng dấu chấm cho phần thập phân.");
+    if (low > high)
+        return QStringLiteral("Ngưỡng dưới không được lớn hơn ngưỡng trên.");
+    return {};
+}
+
+QString ApplicationController::updateThreshold(const QString &id,
+                                               const QString &lowText,
+                                               const QString &highText)
+{
+    const QString validation = validateThreshold(id, lowText, highText);
+    if (!validation.isEmpty())
+        return validation;
+
+    double low = 0.0;
+    double high = 0.0;
+    parseThresholdNumber(lowText, &low);
+    parseThresholdNumber(highText, &high);
+    AppConfig next = m_config;
+    ChannelConfig *channel = next.channelById(id);
+    const Threshold previous = channel->threshold;
+    channel->threshold.enabled = true;
+    channel->threshold.hasLow = true;
+    channel->threshold.low = low;
+    channel->threshold.hasHigh = true;
+    channel->threshold.high = high;
+
+    const QString error = commitConfiguration(next, true);
+    if (error.isEmpty()) {
+        writeApplicationLog(LogLevel::Info,
+                            QStringLiteral("[config] Ngưỡng %1: %2–%3 -> %4–%5")
+                                .arg(id, thresholdNumber(previous.low), thresholdNumber(previous.high),
+                                     thresholdNumber(low), thresholdNumber(high)));
+    }
+    return error;
 }
 
 QString ApplicationController::updateTargetScreen(const QString &name)

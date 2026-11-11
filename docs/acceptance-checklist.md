@@ -14,7 +14,8 @@ Ghi phiên bản/hash package, ngày giờ, người thử/duyệt, máy/Windows
 - [x] Windows Release build + CTest và package trên GitHub-hosted runner cho commit cũ ([run 41395509271](https://github.com/quytttb/caongan-led/actions/runs/41395509271)); smoke cũ không kiểm tra cửa sổ visible.
 - [ ] Build bản sửa và xác nhận cả hai cửa sổ visible bằng smoke mới trên Windows.
 - [ ] Kiểm tra package/Qt license/MSVC và chạy trên máy sạch, đúng tài khoản; qwindows/SQLite/QML hoạt động và CWD khác không làm đổi dữ liệu.
-- [ ] 12 kênh đúng vị trí, đối chiếu từng giá trị, đơn vị, timestamp, status, dải đo và ngưỡng cố định với nguồn được phép. 0 thật hợp lệ; thiếu pH không thành 0; so trước làm tròn.
+- [ ] 12 kênh đúng vị trí, đối chiếu từng giá trị, đơn vị, timestamp, status, dải đo và ngưỡng đã được duyệt với nguồn được phép. 0 thật hợp lệ; thiếu pH không thành 0; so trước làm tròn.
+- [ ] Trên Windows thử đổi/hủy ngưỡng, cận sai/không phải số, lưu thất bại và khởi động lại; ngưỡng phải được áp dụng đúng, không mất nguồn/màn, có backup và log. Thử đóng cửa sổ vận hành: Hủy giữ LED, xác nhận mới thoát.
 - [ ] Thử hiệu chuẩn, lỗi, unknown, stale, sai unit, conflict, future, gửi bù, file thiếu/sai cấu trúc, upload dở/locked/reconnect; không có lỗi nào trông như bình thường trong giới hạn. Nguồn không đổi tên/nội dung/mtime do app.
 - [ ] Backup/rollback config, cache và package; config hỏng, DB lỗi, disk full, hai instance, reboot/crash; không xóa/move nguồn. Đo từ file hoàn tất/được phát hiện đến render tại tải danh định, mục tiêu ban đầu ≤5 giây.
 

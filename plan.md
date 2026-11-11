@@ -516,7 +516,7 @@ Các mục này không ngăn việc xây khung/preview bằng fixture, nhưng l�
 Trong workspace Cao Ngạn:
 
 - `APP_MAN_LED_va_DATALOGGER_NUOC_THAI/LED DISPLAY.pdf`.
-- `APP_MAN_LED_va_DATALOGGER_NUOC_THAI/PHAN_TICH_APP_MAN_LED.md`.
+- `APP_MAN_LED_va_DATALOGGER_NUOC_THAI/docs/PHAN_TICH_APP_MAN_LED.md`.
 - `APP_MAN_LED_va_DATALOGGER_NUOC_THAI/README.md` và kết quả khảo sát bridge/WTW đã thảo luận trước đó.
 - Thông số màn hình và sơ đồ kết nối người dùng đã xác nhận; tài liệu MDATA/hồ sơ thiết bị đã khảo sát ở các bước trước.
 

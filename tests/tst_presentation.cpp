@@ -1,8 +1,10 @@
 #include "domain/ParameterCatalog.h"
+#include "domain/Tt10Time.h"
 #include "presentation/ApplicationController.h"
 #include "presentation/DiagnosticsModel.h"
 #include "presentation/LedParameterModel.h"
 #include "presentation/SimulationFactory.h"
+#include "storage/ConfigStore.h"
 #include "utils/AppPaths.h"
 
 #include <QClipboard>
@@ -23,6 +25,9 @@ private slots:
     void simulationStates();
     void screenPlacement();
     void previewNeedsNoTarget();
+    void editableThresholds();
+    void thresholdUpdateReevaluatesRealInput();
+    void thresholdSaveFailureDoesNotApply();
     void logViewCopyAndExport();
 };
 
@@ -111,6 +116,114 @@ void TestPresentation::previewNeedsNoTarget()
     QVERIFY(controller.positionLedWindow(&window));
     QCOMPARE(window.screen(), QGuiApplication::primaryScreen());
     QCOMPARE(window.position(), QGuiApplication::primaryScreen()->geometry().topLeft());
+    controller.shutdown();
+}
+
+void TestPresentation::editableThresholds()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
+    const QString path = temp.filePath(QStringLiteral("config.json"));
+
+    LedParameterModel led;
+    DiagnosticsModel diagnostics;
+    ApplicationController controller(&led, &diagnostics);
+    controller.initialize(path, true, true, QStringLiteral("Bình thường"));
+    const auto stateFor = [&led](const QString &id, int role) -> QString {
+        for (int row = 0; row < led.rowCount(); ++row) {
+            const QModelIndex index = led.index(row, 0);
+            if (led.data(index, LedParameterModel::ChannelIdRole).toString() == id)
+                return led.data(index, role).toString();
+        }
+        return {};
+    };
+    QCOMPARE(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole), QStringLiteral("withinLimit"));
+    QVERIFY(!controller.validateThreshold(QStringLiteral("unknown"), QStringLiteral("0"), QStringLiteral("1")).isEmpty());
+    QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("NaN"), QStringLiteral("1")).isEmpty());
+    QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("1,5"), QStringLiteral("2")).isEmpty());
+    QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("10"), QStringLiteral("2")).isEmpty());
+    QCOMPARE(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole), QStringLiteral("withinLimit"));
+
+    QCOMPARE(controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("0"), QStringLiteral("30")), QString());
+    QCOMPARE(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole), QStringLiteral("exceedsLimit"));
+    QCOMPARE(controller.updateThreshold(QStringLiteral("ph"), QStringLiteral("6.25"), QStringLiteral("8.75")), QString());
+    QCOMPARE(stateFor(QStringLiteral("ph"), LedParameterModel::ThresholdTextRole), QStringLiteral("6.25 – 8.75"));
+
+    ConfigStore store(path);
+    AppConfig saved;
+    QCOMPARE(store.load(saved), ConfigStore::LoadStatus::Loaded);
+    QCOMPARE(saved.channelById(QStringLiteral("cod"))->threshold.high, 30.0);
+    QCOMPARE(saved.channelById(QStringLiteral("ph"))->threshold.low, 6.25);
+    QCOMPARE(saved.channelById(QStringLiteral("ph"))->threshold.high, 8.75);
+    QVERIFY(QFile::exists(store.backupPath()));
+    controller.shutdown();
+
+    LedParameterModel reloadedLed;
+    DiagnosticsModel reloadedDiagnostics;
+    ApplicationController reloaded(&reloadedLed, &reloadedDiagnostics);
+    reloaded.initialize(path, true, true, QStringLiteral("Bình thường"));
+    QCOMPARE(reloaded.channelSettings().at(8).toMap().value(QStringLiteral("thresholdLow")).toString(), QStringLiteral("6.25"));
+    QCOMPARE(reloadedLed.data(reloadedLed.index(10, 0), LedParameterModel::StateKeyRole).toString(), QStringLiteral("exceedsLimit"));
+    reloaded.shutdown();
+}
+
+void TestPresentation::thresholdSaveFailureDoesNotApply()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
+    const QString path = temp.filePath(QStringLiteral("config.json"));
+    LedParameterModel led;
+    DiagnosticsModel diagnostics;
+    ApplicationController controller(&led, &diagnostics);
+    controller.initialize(path, true, true, QStringLiteral("Bình thường"));
+    // Không thể thay backup bằng tệp khi tại đường dẫn đó có một thư mục.
+    QVERIFY(QDir().mkpath(path + QStringLiteral(".backup")));
+    QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("0"), QStringLiteral("30")).isEmpty());
+    QCOMPARE(controller.channelSettings().at(10).toMap().value(QStringLiteral("thresholdHigh")).toString(), QStringLiteral("82.5"));
+    QCOMPARE(led.data(led.index(10, 0), LedParameterModel::StateKeyRole).toString(), QStringLiteral("withinLimit"));
+    ConfigStore store(path);
+    AppConfig saved;
+    QCOMPARE(store.load(saved), ConfigStore::LoadStatus::Loaded);
+    QCOMPARE(saved.channelById(QStringLiteral("cod"))->threshold.high, 82.5);
+    controller.shutdown();
+}
+
+void TestPresentation::thresholdUpdateReevaluatesRealInput()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
+    const QString source = temp.filePath(QStringLiteral("input"));
+    QVERIFY(QDir().mkpath(source));
+    const QString timestamp = tt10::formatTimestamp(QDateTime::currentDateTimeUtc().addSecs(-5));
+    const QString name = QStringLiteral("TNg_NDCN_KHITO1_%1.txt").arg(timestamp);
+    const QByteArray input = QStringLiteral("CO\t46\tmg/Nm3\t%1\t00\n").arg(timestamp).toUtf8();
+    QFile file(QDir(source).filePath(name));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(input), input.size());
+    file.close();
+
+    const QString path = temp.filePath(QStringLiteral("config.json"));
+    ConfigStore store(path);
+    AppConfig config = defaultAppConfig();
+    config.sources[0].folder = source;
+    QString error;
+    QVERIFY2(store.save(config, &error), qPrintable(error));
+
+    LedParameterModel led;
+    DiagnosticsModel diagnostics;
+    ApplicationController controller(&led, &diagnostics);
+    controller.initialize(path, true);
+    QTRY_COMPARE_WITH_TIMEOUT(led.data(led.index(1, 0), LedParameterModel::StateKeyRole).toString(),
+                              QStringLiteral("withinLimit"), 10000);
+    QCOMPARE(controller.updateThreshold(QStringLiteral("co"), QStringLiteral("0"), QStringLiteral("30")), QString());
+    QTRY_COMPARE_WITH_TIMEOUT(led.data(led.index(1, 0), LedParameterModel::StateKeyRole).toString(),
+                              QStringLiteral("exceedsLimit"), 10000);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), input);
+    file.close();
     controller.shutdown();
 }
 

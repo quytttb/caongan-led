@@ -44,6 +44,8 @@ private slots:
     void ledAlwaysFullScreen_data();
     void ledAlwaysFullScreen();
     void operatorChrome();
+    void cancelExitKeepsLedVisible();
+    void thresholdEditor();
     void simulationIsMarkedAndIsolated();
 };
 
@@ -265,7 +267,151 @@ void TestWindowUi::operatorChrome()
     QTRY_COMPARE(window->visibility(), QWindow::Windowed);
 
     click(close);
+    auto *exitDialog = window->findChild<QObject *>(QStringLiteral("exitConfirmationDialog"));
+    QVERIFY(exitDialog);
+    QTRY_VERIFY(exitDialog->property("visible").toBool());
+    QVERIFY(window->isVisible());
+    if (qEnvironmentVariableIsSet("CAONGAN_LED_TEST_EXIT_DIALOG_SCREENSHOT")) {
+        QTRY_VERIFY(exitDialog->property("opened").toBool());
+        QVERIFY(window->grabWindow().save(qEnvironmentVariable("CAONGAN_LED_TEST_EXIT_DIALOG_SCREENSHOT")));
+    }
+    auto *cancelExit = findVisualItem(window->contentItem(), QStringLiteral("cancelExitButton"));
+    QVERIFY(cancelExit);
+    click(cancelExit);
+    QTRY_VERIFY(!exitDialog->property("visible").toBool());
+    QVERIFY(window->isVisible());
+
+    // Kể cả yêu cầu đóng từ hệ điều hành cũng phải hỏi trước.
+    window->close();
+    QTRY_VERIFY(exitDialog->property("visible").toBool());
+    QVERIFY(window->isVisible());
+    auto *confirmExit = findVisualItem(window->contentItem(), QStringLiteral("confirmExitButton"));
+    QVERIFY(confirmExit);
+    click(confirmExit);
     QTRY_VERIFY(!window->isVisible());
+    object.reset();
+    controller.shutdown();
+}
+
+void TestWindowUi::cancelExitKeepsLedVisible()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
+    LedParameterModel led;
+    DiagnosticsModel diagnostics;
+    ApplicationController controller(&led, &diagnostics);
+    controller.initialize(temp.filePath(QStringLiteral("config.json")), true, true,
+                          QStringLiteral("Bình thường"));
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
+    engine.rootContext()->setContextProperty(QStringLiteral("ledParameterModel"), &led);
+    QQmlComponent ledComponent(&engine, QUrl::fromLocalFile(QStringLiteral(CAONGAN_QML_SOURCE_DIR "/LedWindow.qml")));
+    QQmlComponent operatorComponent(&engine, QUrl::fromLocalFile(QStringLiteral(CAONGAN_QML_SOURCE_DIR "/OperatorWindow.qml")));
+    QVERIFY2(ledComponent.isReady(), qPrintable(ledComponent.errorString()));
+    QVERIFY2(operatorComponent.isReady(), qPrintable(operatorComponent.errorString()));
+    std::unique_ptr<QObject> ledObject(ledComponent.create());
+    std::unique_ptr<QObject> operatorObject(operatorComponent.create());
+    QVERIFY2(ledObject, qPrintable(ledComponent.errorString()));
+    QVERIFY2(operatorObject, qPrintable(operatorComponent.errorString()));
+    auto *ledWindow = qobject_cast<QQuickWindow *>(ledObject.get());
+    auto *operatorWindow = qobject_cast<QQuickWindow *>(operatorObject.get());
+    QVERIFY(ledWindow);
+    QVERIFY(operatorWindow);
+    QTRY_VERIFY(ledWindow->isVisible());
+    QTRY_VERIFY(operatorWindow->isVisible());
+
+    operatorWindow->close();
+    auto *exitDialog = operatorWindow->findChild<QObject *>(QStringLiteral("exitConfirmationDialog"));
+    QVERIFY(exitDialog);
+    QTRY_VERIFY(exitDialog->property("visible").toBool());
+    QVERIFY(QMetaObject::invokeMethod(exitDialog, "reject"));
+    QTRY_VERIFY(!exitDialog->property("visible").toBool());
+    QVERIFY(operatorWindow->isVisible());
+    QVERIFY(ledWindow->isVisible());
+    QVERIFY(controller.ledWindowVisible());
+    operatorObject.reset();
+    ledObject.reset();
+    controller.shutdown();
+}
+
+void TestWindowUi::thresholdEditor()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
+    LedParameterModel led;
+    DiagnosticsModel diagnostics;
+    ApplicationController controller(&led, &diagnostics);
+    const QString path = temp.filePath(QStringLiteral("config.json"));
+    controller.initialize(path, true, true, QStringLiteral("Bình thường"));
+    QQmlEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
+    engine.rootContext()->setContextProperty(QStringLiteral("ledParameterModel"), &led);
+    QQmlComponent component(&engine, QUrl::fromLocalFile(QStringLiteral(CAONGAN_QML_SOURCE_DIR "/OperatorWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    std::unique_ptr<QObject> object(component.create());
+    QVERIFY2(object, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(object.get());
+    QVERIFY(window);
+    QTRY_VERIFY(window->isVisible());
+    QVERIFY(window->setProperty("pageIndex", 1));
+
+    const auto click = [window](QQuickItem *item) {
+        const QPoint point = item->mapToScene(QPointF(item->width() / 2, item->height() / 2)).toPoint();
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, point);
+    };
+    auto *edit = findVisualItem(window->contentItem(), QStringLiteral("editThreshold_o2"));
+    QVERIFY(edit);
+    QTRY_VERIFY(window->isExposed());
+    QTRY_VERIFY(edit->isVisible());
+    QTRY_VERIFY(edit->width() > 0 && edit->height() > 0);
+    click(edit);
+    auto *editor = window->findChild<QObject *>(QStringLiteral("thresholdEditor"));
+    QVERIFY(editor);
+    QTRY_VERIFY(editor->property("visible").toBool());
+    if (qEnvironmentVariableIsSet("CAONGAN_LED_TEST_THRESHOLD_DIALOG_SCREENSHOT")) {
+        QTRY_VERIFY(editor->property("opened").toBool());
+        QVERIFY(window->grabWindow().save(qEnvironmentVariable("CAONGAN_LED_TEST_THRESHOLD_DIALOG_SCREENSHOT")));
+    }
+    auto *low = findVisualItem(window->contentItem(), QStringLiteral("thresholdLowInput"));
+    auto *high = findVisualItem(window->contentItem(), QStringLiteral("thresholdHighInput"));
+    auto *save = findVisualItem(window->contentItem(), QStringLiteral("saveThresholdButton"));
+    QVERIFY(low);
+    QVERIFY(high);
+    QVERIFY(save);
+    QVERIFY(low->setProperty("text", QStringLiteral("20")));
+    QVERIFY(high->setProperty("text", QStringLiteral("10")));
+    click(save);
+    QTRY_VERIFY(!editor->property("errorText").toString().isEmpty());
+    QVERIFY(editor->property("visible").toBool());
+
+    QVERIFY(low->setProperty("text", QStringLiteral("0")));
+    QVERIFY(high->setProperty("text", QStringLiteral("10.5")));
+    click(save);
+    auto *confirm = window->findChild<QObject *>(QStringLiteral("confirmThreshold"));
+    QVERIFY(confirm);
+    QTRY_VERIFY(confirm->property("visible").toBool());
+    if (qEnvironmentVariableIsSet("CAONGAN_LED_TEST_CONFIRM_THRESHOLD_SCREENSHOT")) {
+        QTRY_VERIFY(confirm->property("opened").toBool());
+        QVERIFY(window->grabWindow().save(qEnvironmentVariable("CAONGAN_LED_TEST_CONFIRM_THRESHOLD_SCREENSHOT")));
+    }
+    QVERIFY(QMetaObject::invokeMethod(confirm, "reject"));
+    QTRY_VERIFY(!confirm->property("visible").toBool());
+    QVERIFY(editor->property("visible").toBool());
+    QCOMPARE(controller.channelSettings().at(0).toMap().value(QStringLiteral("thresholdHigh")).toString(), QStringLiteral("15"));
+
+    click(save);
+    QTRY_VERIFY(confirm->property("visible").toBool());
+    QVERIFY(QMetaObject::invokeMethod(confirm, "accept"));
+    QTRY_VERIFY(!editor->property("visible").toBool());
+    QCOMPARE(controller.channelSettings().at(0).toMap().value(QStringLiteral("thresholdHigh")).toString(), QStringLiteral("10.5"));
+    ConfigStore store(path);
+    AppConfig saved;
+    QCOMPARE(store.load(saved), ConfigStore::LoadStatus::Loaded);
+    QCOMPARE(saved.channelById(QStringLiteral("o2"))->threshold.high, 10.5);
     object.reset();
     controller.shutdown();
 }

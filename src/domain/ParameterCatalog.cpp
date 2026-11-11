@@ -89,17 +89,17 @@ QList<ChannelConfig> defaultChannels()
     const QString flueStation = QStringLiteral("KHITO1");
     const QString waterStation = QStringLiteral("NUONT1");
 
-    // Ngưỡng cố định theo thông tin nhà máy cung cấp.
-    // Không cho sửa trên màn hình config.
+    // Ngưỡng ban đầu theo máy 192.168.1.18:5001 (11/11/2026), cần xác nhận.
+    // Người vận hành có thể điều chỉnh ngưỡng cảnh báo trong cấu hình.
     const double kLowZero = 0.0;
 
     QList<ChannelConfig> channels;
 
-    // Khí thải: ngưỡng bằng dải đo
+    // Dải đo thiết bị được giữ riêng với ngưỡng cảnh báo.
     channels << makeChannel(QStringLiteral("o2"), ChannelGroup::Exhaust,
                             QStringLiteral("O₂"), QStringLiteral("Oxy"),
                             QStringLiteral("%V"), QStringLiteral("0 - 25 %V"),
-                            true, kLowZero, 25.0,
+                            true, kLowZero, 15.0,
                             {QStringLiteral("%V"), QStringLiteral("%")},
                             {QStringLiteral("O2"), QStringLiteral("O₂")},
                             flueSource, flueStation, 1);
@@ -107,7 +107,7 @@ QList<ChannelConfig> defaultChannels()
     channels << makeChannel(QStringLiteral("co"), ChannelGroup::Exhaust,
                             QStringLiteral("CO"), QStringLiteral("Cacbon monoxit"),
                             QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1500 mg/Nm³"),
-                            true, kLowZero, 1500.0,
+                            true, kLowZero, 480.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("CO")},
                             flueSource, flueStation, 1);
@@ -115,7 +115,7 @@ QList<ChannelConfig> defaultChannels()
     channels << makeChannel(QStringLiteral("nox"), ChannelGroup::Exhaust,
                             QStringLiteral("NOₓ"), QStringLiteral("Nitơ oxit"),
                             QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1500 mg/Nm³"),
-                            true, kLowZero, 1500.0,
+                            true, kLowZero, 390.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("NOx"), QStringLiteral("NOX"), QStringLiteral("NOₓ")},
                             flueSource, flueStation, 1);
@@ -123,7 +123,7 @@ QList<ChannelConfig> defaultChannels()
     channels << makeChannel(QStringLiteral("so2"), ChannelGroup::Exhaust,
                             QStringLiteral("SO₂"), QStringLiteral("Lưu huỳnh đioxit"),
                             QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1000 mg/Nm³"),
-                            true, kLowZero, 1000.0,
+                            true, kLowZero, 300.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("SO2"), QStringLiteral("SO₂")},
                             flueSource, flueStation, 1);
@@ -131,7 +131,7 @@ QList<ChannelConfig> defaultChannels()
     channels << makeChannel(QStringLiteral("pm"), ChannelGroup::Exhaust,
                             QStringLiteral("PM"), QStringLiteral("Bụi"),
                             QStringLiteral("mg/Nm³"), QStringLiteral("0 - 1000 mg/Nm³"),
-                            true, kLowZero, 1000.0,
+                            true, kLowZero, 120.0,
                             {QStringLiteral("mg/Nm³")},
                             {QStringLiteral("PM")},
                             flueSource, flueStation, 1);
@@ -139,7 +139,7 @@ QList<ChannelConfig> defaultChannels()
     channels << makeChannel(QStringLiteral("temp_flue"), ChannelGroup::Exhaust,
                             QStringLiteral("Temp"), QStringLiteral("Nhiệt độ khí thải"),
                             QStringLiteral("°C"), QStringLiteral("0 - 500 °C"),
-                            true, kLowZero, 500.0,
+                            true, kLowZero, 200.0,
                             {QStringLiteral("°C")},
                             {QStringLiteral("Temp"), QStringLiteral("TEMP")},
                             flueSource, flueStation, 1);
@@ -155,7 +155,7 @@ QList<ChannelConfig> defaultChannels()
     channels << makeChannel(QStringLiteral("pressure_flue"), ChannelGroup::Exhaust,
                             QStringLiteral("P"), QStringLiteral("Áp suất"),
                             QStringLiteral("kPa"), QStringLiteral("0 - 160 kPa"),
-                            true, kLowZero, 160.0,
+                            true, 80.0, 250.0,
                             {QStringLiteral("kPa")},
                             {QStringLiteral("P")},
                             flueSource, flueStation, 2);
@@ -200,7 +200,7 @@ QList<ChannelConfig> defaultChannels()
 AppConfig defaultAppConfig()
 {
     AppConfig config;
-    config.schemaVersion = 1;
+    config.schemaVersion = 2;
     config.branding.companyName = QStringLiteral("CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV");
     config.branding.branchName =
         QStringLiteral("CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC TKV - CTCP");

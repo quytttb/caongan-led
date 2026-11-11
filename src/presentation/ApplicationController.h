@@ -88,6 +88,12 @@ public:
                                      const QString &folder,
                                      const QString &stationCode,
                                      int staleSeconds);
+    Q_INVOKABLE QString validateThreshold(const QString &id,
+                                          const QString &lowText,
+                                          const QString &highText) const;
+    Q_INVOKABLE QString updateThreshold(const QString &id,
+                                        const QString &lowText,
+                                        const QString &highText);
     Q_INVOKABLE QString updateTargetScreen(const QString &name);
     Q_INVOKABLE bool positionLedWindow(QWindow *window) const;
     Q_INVOKABLE QString reloadConfiguration();
