@@ -121,7 +121,7 @@ void TestWindowUi::ledAlwaysFullScreen()
     QVERIFY(!branch->property("truncated").toBool());
     QVERIFY(!company->property("truncated").toBool());
     QVERIFY(!address->property("truncated").toBool());
-    QCOMPARE(address->property("font").value<QFont>().pixelSize(), 22);
+    QCOMPARE(address->property("font").value<QFont>().pixelSize(), 26);
     for (const QString &name : {QStringLiteral("exhaustCaption"), QStringLiteral("wastewaterCaption")}) {
         auto *caption = findVisualItem(board, name);
         QVERIFY(caption);

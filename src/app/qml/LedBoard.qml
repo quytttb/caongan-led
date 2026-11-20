@@ -57,13 +57,14 @@ Item {
             objectName: "branchName"
             x: 118
             y: 4
-            width: 1000
+            width: addressText.width
             text: (root.brand.branchName || "").toUpperCase()
             color: "#FFFFFF"
             font.family: "Inter"
             font.pixelSize: 23
             font.bold: true
             elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
             visible: text.length > 0
             renderType: Text.QtRendering
         }
@@ -73,25 +74,28 @@ Item {
             objectName: "companyName"
             x: 118
             y: Math.max(34, branchText.y + branchText.height)
-            width: 1000
+            width: addressText.width
             text: root.brand.companyName || ""
             color: "#FFFFFF"
             font.family: "Inter"
             font.pixelSize: 34
             font.bold: true
             elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
             renderType: Text.QtRendering
         }
 
+        // Dòng địa chỉ là mốc độ rộng: hai dòng trên căn giữa theo dòng này.
         Text {
+            id: addressText
             objectName: "companyAddress"
             x: 118
             y: Math.max(79, companyText.y + companyText.height)
-            width: 1000
+            width: Math.min(1000, implicitWidth)
             text: root.brand.address || ""
             color: "#FFFFFF"
             font.family: "Inter"
-            font.pixelSize: 22
+            font.pixelSize: 26
             elide: Text.ElideRight
             visible: text.length > 0
             renderType: Text.QtRendering
