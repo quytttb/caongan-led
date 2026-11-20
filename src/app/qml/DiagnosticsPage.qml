@@ -42,10 +42,15 @@ Item {
         }
     }
 
-    ColumnLayout {
+    ScrollView {
+        id: pageScroll
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 12
+        clip: true
+
+        ColumnLayout {
+            anchors.margins: 24
+            width: pageScroll.availableWidth
+            spacing: 12
 
         RowLayout {
             Layout.fillWidth: true
@@ -239,7 +244,6 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
             Layout.preferredHeight: 240
             radius: 8
             color: AppColors.surfaceContainerLow
@@ -371,7 +375,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: 320
             radius: 8
             color: AppColors.surfaceContainerLow
             border.width: 1
@@ -460,6 +464,7 @@ Item {
                     font.pixelSize: 12
                 }
             }
+        }
         }
     }
 
