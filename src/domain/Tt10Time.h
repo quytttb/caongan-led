@@ -10,6 +10,7 @@ namespace caongan::tt10 {
 inline constexpr int kVietnamOffsetSeconds = 7 * 60 * 60;
 inline constexpr int kTimestampDigits = 14;
 
+bool isTimestampDigits(const QString &text);
 QDateTime parseTimestamp(const QString &text, QString *error = nullptr);
 QString formatTimestamp(const QDateTime &utc);
 QString formatLocalDisplay(const QDateTime &utc, const QString &format = QStringLiteral("HH:mm:ss dd/MM/yyyy"));

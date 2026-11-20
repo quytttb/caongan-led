@@ -6,6 +6,24 @@
 
 namespace caongan {
 
+namespace {
+
+template<typename Formatter>
+QString formatThresholdWith(const Threshold &threshold, Formatter fmt)
+{
+    if (!threshold.configured())
+        return {};
+    const QString low = threshold.hasLow ? fmt(threshold.low) : QStringLiteral("…");
+    const QString high = threshold.hasHigh ? fmt(threshold.high) : QStringLiteral("…");
+    if (threshold.hasLow && threshold.hasHigh)
+        return QStringLiteral("%1 – %2").arg(low, high);
+    if (threshold.hasHigh)
+        return QStringLiteral("≤ %1").arg(high);
+    return QStringLiteral("≥ %1").arg(low);
+}
+
+} // namespace
+
 QString displayStateKey(DisplayState state)
 {
     switch (state) {
@@ -79,6 +97,13 @@ QString formatReadingValue(double value, int decimals)
     return QString::number(value, 'f', digits);
 }
 
+QString formatShortestNumber(double value)
+{
+    if (!std::isfinite(value))
+        return QStringLiteral("—");
+    return QString::number(value, 'f', QLocale::FloatingPointShortest);
+}
+
 QString formatAge(int ageSeconds)
 {
     if (ageSeconds < 0)
@@ -94,15 +119,41 @@ QString formatAge(int ageSeconds)
 
 QString formatThreshold(const Threshold &threshold, int decimals)
 {
-    if (!threshold.configured())
-        return {};
-    const QString low = threshold.hasLow ? formatReadingValue(threshold.low, decimals) : QStringLiteral("…");
-    const QString high = threshold.hasHigh ? formatReadingValue(threshold.high, decimals) : QStringLiteral("…");
-    if (threshold.hasLow && threshold.hasHigh)
-        return QStringLiteral("%1 – %2").arg(low, high);
-    if (threshold.hasHigh)
-        return QStringLiteral("≤ %1").arg(high);
-    return QStringLiteral("≥ %1").arg(low);
+    return formatThresholdWith(threshold, [decimals](double value) {
+        return formatReadingValue(value, decimals);
+    });
+}
+
+QString formatShortestThreshold(const Threshold &threshold)
+{
+    return formatThresholdWith(threshold, formatShortestNumber);
+}
+
+void applyDisplayEvaluation(ChannelState &state, const ChannelEvaluation &evaluation)
+{
+    state.display = evaluation.display;
+    state.valueText = evaluation.valueText;
+    state.statusText = evaluation.statusText;
+    state.stateKey = evaluation.stateKey;
+    state.severity = evaluation.severity;
+    state.detailText = evaluation.detailText;
+}
+
+ChannelState makePlaceholderChannelState(const ChannelConfig &channel, const QDateTime &nowUtc)
+{
+    ChannelState state;
+    state.config = channel;
+    state.hasReading = false;
+    state.validity = Validity::Missing;
+    state.freshness = Freshness::NoReading;
+    state.threshold = channel.threshold.configured()
+        ? ThresholdResult::NotEvaluated
+        : ThresholdResult::NotConfigured;
+    const ChannelEvaluation display = evaluateDisplay(
+        channel, nullptr, Validity::Missing, Freshness::NoReading,
+        state.threshold, false, nowUtc);
+    applyDisplayEvaluation(state, display);
+    return state;
 }
 
 ChannelEvaluation evaluateDisplay(const ChannelConfig &config,
@@ -113,8 +164,6 @@ ChannelEvaluation evaluateDisplay(const ChannelConfig &config,
                                   bool conflict,
                                   const QDateTime &nowUtc)
 {
-    Q_UNUSED(nowUtc)
-
     ChannelEvaluation result;
     result.display = DisplayState::NoData;
     result.valueText = QStringLiteral("—");
@@ -142,25 +191,6 @@ ChannelEvaluation evaluateDisplay(const ChannelConfig &config,
         return result;
     }
 
-    if (validity == Validity::Missing) {
-        apply(DisplayState::NoData);
-        result.detailText = QStringLiteral("Bản ghi %1 không có giá trị").arg(measured);
-        return result;
-    }
-    if (validity == Validity::Invalid) {
-        apply(DisplayState::Invalid);
-        result.detailText = reading->issueMessage.isEmpty()
-            ? QStringLiteral("Bản ghi %1 không hợp lệ").arg(measured)
-            : reading->issueMessage;
-        return result;
-    }
-    if (validity == Validity::UnitMismatch) {
-        apply(DisplayState::UnitMismatch);
-        result.detailText = QStringLiteral("Đơn vị nhận được “%1” không khớp cấu hình “%2”")
-                                .arg(reading->unit, config.unit);
-        return result;
-    }
-
     if (freshness == Freshness::FutureTimestamp) {
         apply(DisplayState::FutureTimestamp);
         result.detailText = QStringLiteral("Mốc đo %1 vượt quá dung sai giờ tương lai").arg(measured);
@@ -172,6 +202,8 @@ ChannelEvaluation evaluateDisplay(const ChannelConfig &config,
         return result;
     }
 
+    // Trạng thái thiết bị do nguồn báo được giữ kể cả khi giá trị thiếu: lỗi,
+    // hiệu chuẩn hoặc bảo trì là thông tin vận hành, không bị che bởi "chưa có số".
     if (reading->deviceStatus == DeviceStatus::DeviceFault) {
         apply(DisplayState::DeviceFault);
         result.detailText = QStringLiteral("Thiết bị báo lỗi tại mốc %1").arg(measured);
@@ -190,6 +222,25 @@ ChannelEvaluation evaluateDisplay(const ChannelConfig &config,
     if (reading->deviceStatus == DeviceStatus::Unknown) {
         apply(DisplayState::UnknownStatus);
         result.detailText = QStringLiteral("Mã trạng thái thiết bị không hỗ trợ tại mốc %1").arg(measured);
+        return result;
+    }
+
+    if (validity == Validity::Missing) {
+        apply(DisplayState::NoData);
+        result.detailText = QStringLiteral("Bản ghi %1 không có giá trị").arg(measured);
+        return result;
+    }
+    if (validity == Validity::Invalid) {
+        apply(DisplayState::Invalid);
+        result.detailText = reading->issueMessage.isEmpty()
+            ? QStringLiteral("Bản ghi %1 không hợp lệ").arg(measured)
+            : reading->issueMessage;
+        return result;
+    }
+    if (validity == Validity::UnitMismatch) {
+        apply(DisplayState::UnitMismatch);
+        result.detailText = QStringLiteral("Đơn vị nhận được “%1” không khớp cấu hình “%2”")
+                                .arg(reading->unit, config.unit);
         return result;
     }
 

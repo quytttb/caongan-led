@@ -107,7 +107,6 @@ add_library(caongan_presentation STATIC
     src/presentation/ApplicationController.cpp
     src/presentation/DiagnosticsModel.cpp
     src/presentation/LedParameterModel.cpp
-    src/presentation/SimulationFactory.cpp
 )
 target_link_libraries(caongan_presentation PUBLIC
     caongan_ingestion
@@ -186,6 +185,11 @@ target_link_libraries(caongan_led PRIVATE
     LoggerKit::theme
     LoggerKit::theme_setup
 )
+
+# Ứng dụng GUI trên Windows: không mở cửa sổ console khi nhấn đúp hay chạy từ Task Scheduler.
+if(WIN32)
+    set_target_properties(caongan_led PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
 
 # Static QML module LoggerKit.Theme cần đăng ký plugin vào executable.
 qt_import_qml_plugins(caongan_led)

@@ -76,6 +76,12 @@ QList<SourceConfig> defaultSources()
     water.id = QStringLiteral("nuoc-thai");
     water.name = QStringLiteral("Nước thải");
     water.stationCode = QStringLiteral("NUONT1");
+    water.ignoredSymbols = {
+        QStringLiteral("Temp"),
+        QStringLiteral("Flow in 1"),
+        QStringLiteral("Flow in 2"),
+        QStringLiteral("Flow out 1"),
+    };
     water.staleAfterSeconds = 900;
     water.futureToleranceSeconds = 120;
 
@@ -167,7 +173,7 @@ QList<ChannelConfig> defaultChannels()
                             true, 6.0, 9.0,
                             {QStringLiteral("-")},
                             {QStringLiteral("pH"), QStringLiteral("PH")},
-                            waterSource, waterStation, 1);
+                            waterSource, waterStation, 2);
 
     channels << makeChannel(QStringLiteral("tss"), ChannelGroup::Wastewater,
                             QStringLiteral("TSS"), QStringLiteral("Chất rắn lơ lửng"),
@@ -183,7 +189,7 @@ QList<ChannelConfig> defaultChannels()
                             true, kLowZero, 82.5,
                             {QStringLiteral("mg/L")},
                             {QStringLiteral("COD")},
-                            waterSource, waterStation, 1);
+                            waterSource, waterStation, 2);
 
     channels << makeChannel(QStringLiteral("nh4"), ChannelGroup::Wastewater,
                             QStringLiteral("NH₄⁺"), QStringLiteral("Amoni"),
@@ -239,7 +245,6 @@ QString normalizeUnit(const QString &unit)
     value.replace(QStringLiteral("0C"), QStringLiteral("°C"));
     value.replace(QStringLiteral("° C"), QStringLiteral("°C"));
     value.replace(QStringLiteral("mg/m3"), QStringLiteral("mg/m³"));
-    value.replace(QStringLiteral("mg/Nm3"), QStringLiteral("mg/Nm³"));
     value.replace(QStringLiteral("mg/Nm3"), QStringLiteral("mg/Nm³"));
     value.replace(QStringLiteral("mg/nM3"), QStringLiteral("mg/Nm³"));
     value.replace(QStringLiteral("m3/h"), QStringLiteral("m³/h"));

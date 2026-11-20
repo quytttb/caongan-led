@@ -38,6 +38,12 @@ qt_add_resources(tst_window_ui "test_brand"
     PREFIX "/branding"
     BASE "${PROJECT_SOURCE_DIR}/resources"
     FILES "${PROJECT_SOURCE_DIR}/resources/factory-logo.jpg")
+qt_add_resources(tst_window_ui "test_fonts"
+    PREFIX "/fonts"
+    BASE "${PROJECT_SOURCE_DIR}/resources/fonts"
+    FILES
+        "${PROJECT_SOURCE_DIR}/resources/fonts/Inter/Inter-Regular.otf"
+        "${PROJECT_SOURCE_DIR}/resources/fonts/Inter/Inter-Bold.otf")
 set_tests_properties(tst_window_ui PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen:configfile=offscreen-screens.json;QT_QUICK_CONTROLS_STYLE=Material")
@@ -47,30 +53,8 @@ set_tests_properties(tst_presentation PROPERTIES
 )
 
 add_test(NAME tst_app_version COMMAND $<TARGET_FILE:caongan_led> --version)
-add_test(NAME tst_simulation_requires_preview COMMAND $<TARGET_FILE:caongan_led> --simulate)
-set_tests_properties(tst_simulation_requires_preview PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-    WILL_FAIL TRUE)
 string(REPLACE "." "\\." CAONGAN_TEST_VERSION_PATTERN "${PROJECT_VERSION}")
 set_tests_properties(tst_app_version PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     PASS_REGULAR_EXPRESSION "CaonganLed ${CAONGAN_TEST_VERSION_PATTERN}"
-)
-
-add_test(NAME tst_qml_windows COMMAND $<TARGET_FILE:caongan_led>
-    --preview --simulate --verify-preview-windows)
-set_tests_properties(tst_qml_windows PROPERTIES
-    TIMEOUT 20
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;CAONGAN_LED_BASE_DIR=${CMAKE_CURRENT_BINARY_DIR}/qml-window-test"
-)
-
-find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
-add_test(NAME tst_preview_modes COMMAND Python3::Interpreter
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_preview_modes.py" $<TARGET_FILE:caongan_led>)
-add_test(NAME tst_simulator COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/test_tt10_simulator.py")
-add_test(NAME tst_simulator_integration COMMAND Python3::Interpreter
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_simulator_integration.py" $<TARGET_FILE:caongan_led>)
-set_tests_properties(tst_preview_modes tst_simulator tst_simulator_integration PROPERTIES
-    TIMEOUT 90
-    ENVIRONMENT "PYTHONIOENCODING=utf-8"
 )

@@ -15,6 +15,7 @@ struct LogOptions {
 enum class LogLevel { Info, Warning, Error };
 
 void setupLogging(const QString &logDir, const LogOptions &options = {});
+void updateLogOptions(const LogOptions &options);
 QString currentLogFilePath();
 void writeApplicationLog(LogLevel level, const QString &message);
 

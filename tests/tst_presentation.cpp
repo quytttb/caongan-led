@@ -3,7 +3,6 @@
 #include "presentation/ApplicationController.h"
 #include "presentation/DiagnosticsModel.h"
 #include "presentation/LedParameterModel.h"
-#include "presentation/SimulationFactory.h"
 #include "storage/ConfigStore.h"
 #include "utils/AppPaths.h"
 
@@ -22,50 +21,12 @@ class TestPresentation : public QObject
 {
     Q_OBJECT
 private slots:
-    void simulationStates();
     void screenPlacement();
-    void previewNeedsNoTarget();
     void editableThresholds();
     void thresholdUpdateReevaluatesRealInput();
     void thresholdSaveFailureDoesNotApply();
     void logViewCopyAndExport();
 };
-
-void TestPresentation::simulationStates()
-{
-    const AppConfig config = defaultAppConfig();
-    const auto stateFor = [&](const QString &scenario, const QString &id) {
-        const auto states = buildSimulationStates(config, scenario, QDateTime::currentDateTimeUtc());
-        for (const ChannelState &state : states) {
-            if (state.config.id == id)
-                return state;
-        }
-        return ChannelState{};
-    };
-    QCOMPARE(buildSimulationStates(config, QStringLiteral("Bình thường"), QDateTime::currentDateTimeUtc()).size(), 12);
-    QCOMPARE(stateFor(QStringLiteral("Vượt ngưỡng"), QStringLiteral("so2")).display, DisplayState::ExceedsLimit);
-    QCOMPARE(stateFor(QStringLiteral("Hiệu chuẩn"), QStringLiteral("o2")).display, DisplayState::Calibrating);
-    QCOMPARE(stateFor(QStringLiteral("Lỗi thiết bị"), QStringLiteral("cod")).display, DisplayState::DeviceFault);
-    QCOMPARE(stateFor(QStringLiteral("Bảo trì"), QStringLiteral("cod")).display, DisplayState::Maintenance);
-    LedParameterModel model;
-    model.setStates(buildSimulationStates(config, QStringLiteral("Bảo trì"), QDateTime::currentDateTimeUtc()));
-    bool foundMaintenance = false;
-    for (int row = 0; row < model.rowCount(); ++row) {
-        const QModelIndex index = model.index(row, 0);
-        if (model.data(index, LedParameterModel::ChannelIdRole).toString() == QLatin1String("cod")) {
-            QCOMPARE(model.data(index, LedParameterModel::StatusTextRole).toString(), QStringLiteral("BẢO TRÌ"));
-            QCOMPARE(model.data(index, LedParameterModel::StateKeyRole).toString(), QStringLiteral("maintenance"));
-            foundMaintenance = true;
-        }
-    }
-    QVERIFY(foundMaintenance);
-    QCOMPARE(stateFor(QStringLiteral("Dữ liệu cũ"), QStringLiteral("o2")).display, DisplayState::Stale);
-    QCOMPARE(stateFor(QStringLiteral("Thiếu pH"), QStringLiteral("ph")).display, DisplayState::NoData);
-    QCOMPARE(stateFor(QStringLiteral("Sai đơn vị"), QStringLiteral("pm")).display, DisplayState::UnitMismatch);
-    QCOMPARE(stateFor(QStringLiteral("Xung đột"), QStringLiteral("so2")).display, DisplayState::Conflict);
-    QCOMPARE(stateFor(QStringLiteral("Flow 6 chữ số"), QStringLiteral("flow_flue")).valueText, QStringLiteral("538964"));
-    QVERIFY(config.channelById(QStringLiteral("so2"))->threshold.enabled);
-}
 
 void TestPresentation::screenPlacement()
 {
@@ -75,22 +36,39 @@ void TestPresentation::screenPlacement()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath("config.json"), false);
+    controller.initialize(temp.filePath("config.json"));
     QWindow window;
     QVERIFY(!controller.positionLedWindow(nullptr));
-    QVERIFY(!controller.positionLedWindow(&window));
-    QVERIFY(!controller.ledWindowVisible());
-    QVERIFY(!controller.screenWarning().isEmpty());
+    QVERIFY(!controller.positionOperatorWindow(nullptr));
+
+    // Cấu hình mặc định tự nhận màn ngoài: "B Test LED" không phải màn chính.
+    QVERIFY(controller.autoDetectExternal());
+    QCOMPARE(controller.ledScreenName(), QStringLiteral("B Test LED"));
+    QCOMPARE(controller.operatorScreenName(), QStringLiteral("A Test operator"));
+    QVERIFY(controller.ledWindowVisible());
+    QVERIFY(controller.screenWarning().isEmpty());
+    QVERIFY(controller.positionLedWindow(&window));
+    QCOMPARE(window.screen()->name(), QStringLiteral("B Test LED"));
+    QCOMPARE(window.position(), window.screen()->geometry().topLeft());
+
+    // Cửa sổ cấu hình sang màn còn lại (màn chính khi LED ở màn ngoài).
+    QWindow operatorWindow;
+    QVERIFY(controller.positionOperatorWindow(&operatorWindow));
+    QCOMPARE(operatorWindow.screen(), QGuiApplication::primaryScreen());
+    QCOMPARE(operatorWindow.position(), QGuiApplication::primaryScreen()->geometry().topLeft());
 
     QScreen *screen = nullptr;
     for (QScreen *candidate : QGuiApplication::screens()) {
-        if (candidate->name() == QStringLiteral("Test LED"))
+        if (candidate->name() == QStringLiteral("B Test LED"))
             screen = candidate;
     }
     QVERIFY(screen);
     QVERIFY(screen != QGuiApplication::primaryScreen());
-    QVERIFY(!controller.updateTargetScreen(QStringLiteral("Duplicate")).isEmpty());
-    QVERIFY(!controller.ledWindowVisible());
+    QVERIFY(!controller.updateTargetScreen(QStringLiteral("Z Duplicate")).isEmpty());
+    QVERIFY(controller.ledWindowVisible());
+    QVERIFY(controller.autoDetectExternal());
+
+    // Chọn thủ công vẫn dùng được; bỏ chọn thì LED ẩn.
     QCOMPARE(controller.updateTargetScreen(screen->name()), QString());
     QVERIFY(controller.ledWindowVisible());
     QVERIFY(controller.positionLedWindow(&window));
@@ -98,24 +76,22 @@ void TestPresentation::screenPlacement()
     QCOMPARE(window.position(), screen->geometry().topLeft());
     QCOMPARE(controller.updateTargetScreen(QString()), QString());
     QVERIFY(!controller.ledWindowVisible());
+    QVERIFY(!controller.screenWarning().isEmpty());
     QVERIFY(!controller.positionLedWindow(&window));
-    controller.shutdown();
-}
 
-void TestPresentation::previewNeedsNoTarget()
-{
-    QTemporaryDir temp;
-    QVERIFY(temp.isValid());
-    qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
-    LedParameterModel led;
-    DiagnosticsModel diagnostics;
-    ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath("config.json"), true);
-    QWindow window;
+    // Bật lại tự động thì LED trở lại màn ngoài dù chưa chọn thủ công.
+    QCOMPARE(controller.updateDisplayMode(true, QString()), QString());
+    QVERIFY(controller.autoDetectExternal());
+    QCOMPARE(controller.ledScreenName(), QStringLiteral("B Test LED"));
     QVERIFY(controller.ledWindowVisible());
     QVERIFY(controller.positionLedWindow(&window));
-    QCOMPARE(window.screen(), QGuiApplication::primaryScreen());
-    QCOMPARE(window.position(), QGuiApplication::primaryScreen()->geometry().topLeft());
+    QCOMPARE(window.screen()->name(), QStringLiteral("B Test LED"));
+
+    ConfigStore store(temp.filePath("config.json"));
+    AppConfig saved;
+    QCOMPARE(store.load(saved), ConfigStore::LoadStatus::Loaded);
+    QVERIFY(saved.display.autoDetectExternal);
+    QVERIFY(saved.display.targetScreenName.isEmpty());
     controller.shutdown();
 }
 
@@ -126,10 +102,27 @@ void TestPresentation::editableThresholds()
     qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
     const QString path = temp.filePath(QStringLiteral("config.json"));
 
+    // Nguồn nước thải tối thiểu để ngưỡng có dữ liệu thật mà đánh giá.
+    const QString waterDir = temp.filePath(QStringLiteral("water"));
+    QVERIFY(QDir().mkpath(waterDir));
+    const QString timestamp = tt10::formatTimestamp(QDateTime::currentDateTimeUtc().addSecs(-5));
+    QFile waterFile(QDir(waterDir).filePath(
+        QStringLiteral("TNg_NDCN_NUONT1_%1.txt").arg(timestamp)));
+    QVERIFY(waterFile.open(QIODevice::WriteOnly));
+    const QByteArray waterInput = QStringLiteral("COD\t37\tmg/L\t%1\t00\n").arg(timestamp).toUtf8();
+    QCOMPARE(waterFile.write(waterInput), waterInput.size());
+    waterFile.close();
+
+    ConfigStore store(path);
+    AppConfig config = defaultAppConfig();
+    config.sources[1].folder = waterDir;
+    QString saveError;
+    QVERIFY2(store.save(config, &saveError), qPrintable(saveError));
+
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(path, true, true, QStringLiteral("Bình thường"));
+    controller.initialize(path);
     const auto stateFor = [&led](const QString &id, int role) -> QString {
         for (int row = 0; row < led.rowCount(); ++row) {
             const QModelIndex index = led.index(row, 0);
@@ -138,7 +131,8 @@ void TestPresentation::editableThresholds()
         }
         return {};
     };
-    QCOMPARE(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole), QStringLiteral("withinLimit"));
+    QTRY_COMPARE_WITH_TIMEOUT(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole),
+                              QStringLiteral("withinLimit"), 10000);
     QVERIFY(!controller.validateThreshold(QStringLiteral("unknown"), QStringLiteral("0"), QStringLiteral("1")).isEmpty());
     QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("NaN"), QStringLiteral("1")).isEmpty());
     QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("1,5"), QStringLiteral("2")).isEmpty());
@@ -146,11 +140,12 @@ void TestPresentation::editableThresholds()
     QCOMPARE(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole), QStringLiteral("withinLimit"));
 
     QCOMPARE(controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("0"), QStringLiteral("30")), QString());
-    QCOMPARE(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole), QStringLiteral("exceedsLimit"));
+    QTRY_COMPARE_WITH_TIMEOUT(stateFor(QStringLiteral("cod"), LedParameterModel::StateKeyRole),
+                              QStringLiteral("exceedsLimit"), 10000);
     QCOMPARE(controller.updateThreshold(QStringLiteral("ph"), QStringLiteral("6.25"), QStringLiteral("8.75")), QString());
-    QCOMPARE(stateFor(QStringLiteral("ph"), LedParameterModel::ThresholdTextRole), QStringLiteral("6.25 – 8.75"));
+    QTRY_COMPARE_WITH_TIMEOUT(stateFor(QStringLiteral("ph"), LedParameterModel::ThresholdTextRole),
+                              QStringLiteral("6.25 – 8.75"), 10000);
 
-    ConfigStore store(path);
     AppConfig saved;
     QCOMPARE(store.load(saved), ConfigStore::LoadStatus::Loaded);
     QCOMPARE(saved.channelById(QStringLiteral("cod"))->threshold.high, 30.0);
@@ -162,9 +157,10 @@ void TestPresentation::editableThresholds()
     LedParameterModel reloadedLed;
     DiagnosticsModel reloadedDiagnostics;
     ApplicationController reloaded(&reloadedLed, &reloadedDiagnostics);
-    reloaded.initialize(path, true, true, QStringLiteral("Bình thường"));
+    reloaded.initialize(path);
     QCOMPARE(reloaded.channelSettings().at(8).toMap().value(QStringLiteral("thresholdLow")).toString(), QStringLiteral("6.25"));
-    QCOMPARE(reloadedLed.data(reloadedLed.index(10, 0), LedParameterModel::StateKeyRole).toString(), QStringLiteral("exceedsLimit"));
+    QTRY_COMPARE_WITH_TIMEOUT(reloadedLed.data(reloadedLed.index(10, 0), LedParameterModel::StateKeyRole).toString(),
+                              QStringLiteral("exceedsLimit"), 10000);
     reloaded.shutdown();
 }
 
@@ -174,16 +170,34 @@ void TestPresentation::thresholdSaveFailureDoesNotApply()
     QVERIFY(temp.isValid());
     qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
     const QString path = temp.filePath(QStringLiteral("config.json"));
+
+    const QString waterDir = temp.filePath(QStringLiteral("water"));
+    QVERIFY(QDir().mkpath(waterDir));
+    const QString timestamp = tt10::formatTimestamp(QDateTime::currentDateTimeUtc().addSecs(-5));
+    QFile waterFile(QDir(waterDir).filePath(
+        QStringLiteral("TNg_NDCN_NUONT1_%1.txt").arg(timestamp)));
+    QVERIFY(waterFile.open(QIODevice::WriteOnly));
+    const QByteArray waterInput = QStringLiteral("COD\t37\tmg/L\t%1\t00\n").arg(timestamp).toUtf8();
+    QCOMPARE(waterFile.write(waterInput), waterInput.size());
+    waterFile.close();
+
+    ConfigStore store(path);
+    AppConfig config = defaultAppConfig();
+    config.sources[1].folder = waterDir;
+    QString saveError;
+    QVERIFY2(store.save(config, &saveError), qPrintable(saveError));
+
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(path, true, true, QStringLiteral("Bình thường"));
+    controller.initialize(path);
+    QTRY_COMPARE_WITH_TIMEOUT(led.data(led.index(10, 0), LedParameterModel::StateKeyRole).toString(),
+                              QStringLiteral("withinLimit"), 10000);
     // Không thể thay backup bằng tệp khi tại đường dẫn đó có một thư mục.
     QVERIFY(QDir().mkpath(path + QStringLiteral(".backup")));
     QVERIFY(!controller.updateThreshold(QStringLiteral("cod"), QStringLiteral("0"), QStringLiteral("30")).isEmpty());
     QCOMPARE(controller.channelSettings().at(10).toMap().value(QStringLiteral("thresholdHigh")).toString(), QStringLiteral("82.5"));
     QCOMPARE(led.data(led.index(10, 0), LedParameterModel::StateKeyRole).toString(), QStringLiteral("withinLimit"));
-    ConfigStore store(path);
     AppConfig saved;
     QCOMPARE(store.load(saved), ConfigStore::LoadStatus::Loaded);
     QCOMPARE(saved.channelById(QStringLiteral("cod"))->threshold.high, 82.5);
@@ -215,7 +229,7 @@ void TestPresentation::thresholdUpdateReevaluatesRealInput()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(path, true);
+    controller.initialize(path);
     QTRY_COMPARE_WITH_TIMEOUT(led.data(led.index(1, 0), LedParameterModel::StateKeyRole).toString(),
                               QStringLiteral("withinLimit"), 10000);
     QCOMPARE(controller.updateThreshold(QStringLiteral("co"), QStringLiteral("0"), QStringLiteral("30")), QString());
@@ -288,7 +302,7 @@ void TestPresentation::logViewCopyAndExport()
     LedParameterModel configuredLed;
     DiagnosticsModel configuredDiagnostics;
     ApplicationController configured(&configuredLed, &configuredDiagnostics);
-    configured.initialize(configPath, true);
+    configured.initialize(configPath);
     QCOMPARE(configured.refreshLogFiles(), QString());
     QVERIFY(!configured.exportLog(QUrl::fromLocalFile(customDir + QStringLiteral("/active.json"))).isEmpty());
     QVERIFY(!configured.exportLog(QUrl::fromLocalFile(customDir + QStringLiteral("/active.json.backup"))).isEmpty());

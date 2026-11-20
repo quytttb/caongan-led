@@ -1,12 +1,10 @@
 #include "SnapshotStore.h"
-#include "domain/ParameterCatalog.h"
 
 #include <QDir>
 #include <QFileInfo>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
-#include <QSqlRecord>
 #include <QUuid>
 #include <QVariant>
 
@@ -65,6 +63,13 @@ Validity validityFromText(const QString &text)
     return Validity::Invalid;
 }
 
+bool fail(QString *error, const QString &message)
+{
+    if (error)
+        *error = message;
+    return false;
+}
+
 } // namespace
 
 SnapshotStore::SnapshotStore(QString databasePath)
@@ -75,11 +80,6 @@ SnapshotStore::SnapshotStore(QString databasePath)
 SnapshotStore::~SnapshotStore()
 {
     close();
-}
-
-void SnapshotStore::setError(const QString &message)
-{
-    m_lastError = message;
 }
 
 bool SnapshotStore::open(QString *error)
@@ -94,9 +94,7 @@ bool SnapshotStore::open(QString *error)
     QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_connectionName);
     db.setDatabaseName(m_databasePath);
     if (!db.open()) {
-        setError(QStringLiteral("Không mở được SQLite %1: %2").arg(m_databasePath, db.lastError().text()));
-        if (error)
-            *error = m_lastError;
+        fail(error, QStringLiteral("Không mở được SQLite %1: %2").arg(m_databasePath, db.lastError().text()));
         db.close();
         db = QSqlDatabase();
         QSqlDatabase::removeDatabase(m_connectionName);
@@ -144,10 +142,7 @@ bool SnapshotStore::ensureSchema(QString *error)
             " file_path TEXT,"
             " content_hash TEXT,"
             " received_at_utc TEXT)"))) {
-        setError(QStringLiteral("Tạo bảng latest_reading thất bại: %1").arg(query.lastError().text()));
-        if (error)
-            *error = m_lastError;
-        return false;
+        return fail(error, QStringLiteral("Tạo bảng latest_reading thất bại: %1").arg(query.lastError().text()));
     }
 
     if (!query.exec(QStringLiteral(
@@ -161,10 +156,7 @@ bool SnapshotStore::ensureSchema(QString *error)
             " outcome TEXT,"
             " message TEXT,"
             " processed_at_utc TEXT)"))) {
-        setError(QStringLiteral("Tạo bảng checkpoint thất bại: %1").arg(query.lastError().text()));
-        if (error)
-            *error = m_lastError;
-        return false;
+        return fail(error, QStringLiteral("Tạo bảng checkpoint thất bại: %1").arg(query.lastError().text()));
     }
 
     query.exec(QStringLiteral("CREATE INDEX IF NOT EXISTS idx_checkpoint_hash "
@@ -194,22 +186,15 @@ bool SnapshotStore::isOpen() const
 
 bool SnapshotStore::loadReadings(QVector<Reading> *readings, QString *error)
 {
-    if (!m_open) {
-        if (error)
-            *error = QStringLiteral("SQLite chưa mở");
-        return false;
-    }
+    if (!m_open)
+        return fail(error, QStringLiteral("SQLite chưa mở"));
     if (!readings)
         return false;
 
     QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
     QSqlQuery query(db);
-    if (!query.exec(QStringLiteral("SELECT * FROM latest_reading"))) {
-        setError(QStringLiteral("Đọc snapshot thất bại: %1").arg(query.lastError().text()));
-        if (error)
-            *error = m_lastError;
-        return false;
-    }
+    if (!query.exec(QStringLiteral("SELECT * FROM latest_reading")))
+        return fail(error, QStringLiteral("Đọc snapshot thất bại: %1").arg(query.lastError().text()));
 
     while (query.next()) {
         Reading reading;
@@ -241,19 +226,12 @@ bool SnapshotStore::saveTransaction(const QVector<Reading> &readings,
                                     const QVector<CheckpointRecord> &checkpoints,
                                     QString *error)
 {
-    if (!m_open) {
-        if (error)
-            *error = QStringLiteral("SQLite chưa mở");
-        return false;
-    }
+    if (!m_open)
+        return fail(error, QStringLiteral("SQLite chưa mở"));
 
     QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
-    if (!db.transaction()) {
-        setError(QStringLiteral("Bắt đầu transaction thất bại: %1").arg(db.lastError().text()));
-        if (error)
-            *error = m_lastError;
-        return false;
-    }
+    if (!db.transaction())
+        return fail(error, QStringLiteral("Bắt đầu transaction thất bại: %1").arg(db.lastError().text()));
 
     QSqlQuery upsert(db);
     upsert.prepare(QStringLiteral(
@@ -289,11 +267,9 @@ bool SnapshotStore::saveTransaction(const QVector<Reading> &readings,
         upsert.addBindValue(reading.contentHash);
         upsert.addBindValue(iso(reading.receivedAtUtc));
         if (!upsert.exec()) {
-            setError(QStringLiteral("Ghi snapshot thất bại: %1").arg(upsert.lastError().text()));
+            const QString msg = QStringLiteral("Ghi snapshot thất bại: %1").arg(upsert.lastError().text());
             db.rollback();
-            if (error)
-                *error = m_lastError;
-            return false;
+            return fail(error, msg);
         }
     }
 
@@ -316,42 +292,31 @@ bool SnapshotStore::saveTransaction(const QVector<Reading> &readings,
         checkpoint.addBindValue(item.message);
         checkpoint.addBindValue(iso(item.processedAtUtc));
         if (!checkpoint.exec()) {
-            setError(QStringLiteral("Ghi checkpoint thất bại: %1").arg(checkpoint.lastError().text()));
+            const QString msg = QStringLiteral("Ghi checkpoint thất bại: %1").arg(checkpoint.lastError().text());
             db.rollback();
-            if (error)
-                *error = m_lastError;
-            return false;
+            return fail(error, msg);
         }
     }
 
     if (!db.commit()) {
-        setError(QStringLiteral("Commit transaction thất bại: %1").arg(db.lastError().text()));
+        const QString msg = QStringLiteral("Commit transaction thất bại: %1").arg(db.lastError().text());
         db.rollback();
-        if (error)
-            *error = m_lastError;
-        return false;
+        return fail(error, msg);
     }
     return true;
 }
 
 bool SnapshotStore::checkpointFor(const QString &fileKey, CheckpointRecord *record, QString *error)
 {
-    if (!m_open || !record) {
-        if (error)
-            *error = QStringLiteral("SQLite chưa mở");
-        return false;
-    }
+    if (!m_open || !record)
+        return fail(error, QStringLiteral("SQLite chưa mở"));
 
     QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
     QSqlQuery query(db);
     query.prepare(QStringLiteral("SELECT * FROM checkpoint WHERE file_key=?"));
     query.addBindValue(fileKey);
-    if (!query.exec()) {
-        setError(QStringLiteral("Đọc checkpoint thất bại: %1").arg(query.lastError().text()));
-        if (error)
-            *error = m_lastError;
-        return false;
-    }
+    if (!query.exec())
+        return fail(error, QStringLiteral("Đọc checkpoint thất bại: %1").arg(query.lastError().text()));
     if (!query.next())
         return false;
 
@@ -369,50 +334,35 @@ bool SnapshotStore::checkpointFor(const QString &fileKey, CheckpointRecord *reco
 
 bool SnapshotStore::hasProcessedContent(const QString &contentHash, QString *error)
 {
-    if (!m_open || contentHash.isEmpty()) {
-        if (error)
-            *error = QStringLiteral("SQLite chưa mở");
-        return false;
-    }
+    if (!m_open || contentHash.isEmpty())
+        return fail(error, QStringLiteral("SQLite chưa mở"));
 
     QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
     QSqlQuery query(db);
     query.prepare(QStringLiteral(
         "SELECT 1 FROM checkpoint WHERE content_hash=? AND outcome='ok' LIMIT 1"));
     query.addBindValue(contentHash);
-    if (!query.exec()) {
-        setError(QStringLiteral("Kiểm tra hash đã xử lý thất bại: %1").arg(query.lastError().text()));
-        if (error)
-            *error = m_lastError;
-        return false;
-    }
+    if (!query.exec())
+        return fail(error, QStringLiteral("Kiểm tra hash đã xử lý thất bại: %1").arg(query.lastError().text()));
     return query.next();
 }
 
 bool SnapshotStore::prune(int retentionDays, int maxRows, QString *error)
 {
-    if (!m_open) {
-        if (error)
-            *error = QStringLiteral("SQLite chưa mở");
-        return false;
-    }
+    if (!m_open)
+        return fail(error, QStringLiteral("SQLite chưa mở"));
 
     QSqlDatabase db = QSqlDatabase::database(m_connectionName, false);
-    if (!db.transaction()) {
-        if (error)
-            *error = db.lastError().text();
-        return false;
-    }
+    if (!db.transaction())
+        return fail(error, db.lastError().text());
 
     QSqlQuery old(db);
     old.prepare(QStringLiteral("DELETE FROM checkpoint WHERE processed_at_utc < ?"));
     old.addBindValue(iso(QDateTime::currentDateTimeUtc().addDays(-qMax(1, retentionDays))));
     if (!old.exec()) {
-        setError(QStringLiteral("Prune checkpoint theo ngày thất bại: %1").arg(old.lastError().text()));
+        const QString msg = QStringLiteral("Prune checkpoint theo ngày thất bại: %1").arg(old.lastError().text());
         db.rollback();
-        if (error)
-            *error = m_lastError;
-        return false;
+        return fail(error, msg);
     }
 
     QSqlQuery count(db);
@@ -421,19 +371,15 @@ bool SnapshotStore::prune(int retentionDays, int maxRows, QString *error)
                                  " LIMIT MAX(0, (SELECT COUNT(*) FROM checkpoint) - ?))"));
     count.addBindValue(qMax(100, maxRows));
     if (!count.exec()) {
-        setError(QStringLiteral("Prune checkpoint theo số dòng thất bại: %1").arg(count.lastError().text()));
+        const QString msg = QStringLiteral("Prune checkpoint theo số dòng thất bại: %1").arg(count.lastError().text());
         db.rollback();
-        if (error)
-            *error = m_lastError;
-        return false;
+        return fail(error, msg);
     }
 
     if (!db.commit()) {
-        setError(QStringLiteral("Commit prune thất bại: %1").arg(db.lastError().text()));
+        const QString msg = QStringLiteral("Commit prune thất bại: %1").arg(db.lastError().text());
         db.rollback();
-        if (error)
-            *error = m_lastError;
-        return false;
+        return fail(error, msg);
     }
     return true;
 }

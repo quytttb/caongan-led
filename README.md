@@ -6,25 +6,25 @@
 
 ## Chạy thử trên Linux
 
-Yêu cầu Qt **6.11.1** với Core, Gui, Qml, Quick, Quick Controls 2, Quick Layouts, SQL/SQLite và Qt Test; CMake ≥ 3.24, Ninja, compiler C++20 và Python ≥ 3.10 cho test simulator. GUI simulator cần thêm Python Tkinter. `shared/logger-ui-kit` phải có đúng revision trong [provenance](docs/provenance.md).
+Yêu cầu Qt **6.11.1** với Core, Gui, Qml, Quick, Quick Controls 2, Quick Layouts, SQL/SQLite và Qt Test; CMake ≥ 3.24, Ninja và compiler C++20. `shared/logger-ui-kit` phải có đúng revision trong [provenance](docs/provenance.md).
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_PREFIX_PATH="$HOME/Qt/6.11.1/gcc_64" -DCAONGAN_BUILD_TESTS=ON
 cmake --build build -j 4
 ctest --test-dir build --output-on-failure
-./build/caongan_led --preview
+./build/caongan_led
 ```
 
-LED luôn toàn màn hình, không viền; bố cục giữ tỉ lệ 5:3 nên có thể có dải đen nếu tỉ lệ vùng tín hiệu khác. 1600 × 960 là kích thước bố cục logic, không phải khẳng định độ phân giải pixel của LED. Cần kiểm tra độ phân giải, EDID và mapping trên thiết bị thực. `--preview` hiển thị LED toàn màn hình trên màn chính, không cần chọn output; dùng Alt+Tab để chuyển về cửa sổ vận hành khi chỉ có một màn hình.
+LED luôn toàn màn hình, không viền; bố cục giữ tỉ lệ 5:3 nên có thể có dải đen nếu tỉ lệ vùng tín hiệu khác. 1600 × 960 là kích thước bố cục logic, không phải khẳng định độ phân giải pixel của LED. Cần kiểm tra độ phân giải, EDID và mapping trên thiết bị thực. Khi khởi động, ứng dụng tự chọn màn hình ngoài (màn không phải màn chính; nếu có nhiều màn ngoài thì chọn màn diện tích lớn nhất) cho LED và mở cửa sổ cấu hình phóng to trên màn còn lại. Nếu không có màn ngoài, LED công khai ẩn và cửa sổ cấu hình vẫn mở trên màn chính. Có thể tắt tự động và chọn màn thủ công tại trang **Màn hình LED**.
 
-Để thử dữ liệu giả qua file dùng simulator độc lập trong môi trường tách biệt; LED không tự nhận biết file giả. Ngoài ra `--preview --simulate --scenario 'Vượt ngưỡng'` chỉ dùng dữ liệu mô phỏng, không đọc nguồn thật và có nhãn MÔ PHỎNG. Cấu hình và database mặc định vẫn được tạo trong vùng dữ liệu ứng dụng khi chạy bình thường; để cách ly, đặt `CAONGAN_LED_BASE_DIR` tới thư mục thử riêng. `--config <đường-dẫn>` chỉ đổi file cấu hình, không đổi database/log hay khóa một instance.
+Cấu hình và database mặc định được tạo trong vùng dữ liệu ứng dụng; để cách ly khi thử, đặt `CAONGAN_LED_BASE_DIR` tới thư mục thử riêng. `--config <đường-dẫn>` chỉ đổi file cấu hình, không đổi database/log hay khóa một instance.
 
 Trang **Nhật ký** trong cửa sổ vận hành cho phép chọn log hiện tại hoặc log đã xoay vòng, làm mới, sao chép nội dung đang xem và xuất toàn bộ tệp. Màn xem giới hạn 1 MiB cuối; tệp xuất tối đa 64 MiB. Log có thể chứa đường dẫn, giá trị và trạng thái kênh, cần kiểm tra trước khi chia sẻ.
 
 Trang **Ngưỡng & dải đo** cho sửa ngưỡng cảnh báo dưới/trên từng kênh, kiểm tra số hợp lệ và yêu cầu xác nhận trước khi lưu. Ngưỡng mới được áp dụng và lưu qua lần khởi động sau; dải đo không thay đổi. Ngưỡng mặc định lấy từ máy cũ, cần nhà máy xác nhận. Đóng cửa sổ vận hành bằng X sẽ hỏi xác nhận trước khi thoát cả ứng dụng.
 
-Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule update --init --recursive` sau khi clone. Mẫu cấu hình [sample-data/caongan-led.example.json](sample-data/caongan-led.example.json) có thư mục nguồn trống, chưa chọn màn và dùng ngưỡng mặc định từ catalog. File tại `sample-data/inputs/` là dữ liệu **giả**, mốc cố định 01/01/2026 và sẽ hiển thị cũ khi vượt timeout. Để thử đọc file, dùng bản sao thư mục thử và cấu hình đường dẫn tuyệt đối; đừng đưa mẫu lên LED công khai như dữ liệu thật.
+Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule update --init --recursive` sau khi clone. Mẫu cấu hình [sample-data/caongan-led.example.json](sample-data/caongan-led.example.json) có thư mục nguồn trống, bật tự nhận màn ngoài cho LED và dùng ngưỡng mặc định từ catalog. File tại `sample-data/inputs/` là dữ liệu **giả**, mốc cố định 01/01/2026 và sẽ hiển thị cũ khi vượt timeout. Để thử đọc file, dùng bản sao thư mục thử và cấu hình đường dẫn tuyệt đối; đừng đưa mẫu lên LED công khai như dữ liệu thật.
 
 ## Tài liệu
 
@@ -32,7 +32,6 @@ Clone với `git clone --recurse-submodules`, hoặc chạy `git submodule updat
 - [Hướng dẫn vận hành](docs/runbook.md), [hướng dẫn thử](docs/walkthrough.md), [checklist nghiệm thu](docs/acceptance-checklist.md).
 - [Windows build/deploy, MSI và rollback](packaging/windows/README.md); [Linux build/DEB](packaging/linux/README.md); [nguồn gốc](docs/provenance.md), [giấy phép bên thứ ba](THIRD_PARTY_NOTICES.md), [việc còn lại](docs/todo.md).
 - [CI, Dev Build và Build Release](docs/ci-cd.md).
-- [Simulator TT10 cho test thủ công](docs/simulator.md).
 
 Thứ tự cố định: khí thải **O₂, CO, NOx, SO₂, PM, Temp, Flow, P**; nước thải **pH, TSS, COD, NH₄⁺**. `00` là đang đo, không có nghĩa là đạt ngưỡng hay tuân thủ quy chuẩn. Không chuyển đổi NH₄-N, PM mg/m³ hay NO/NO₂ thành giá trị khác.
 

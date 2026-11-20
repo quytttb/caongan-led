@@ -8,6 +8,7 @@
 #include <QGuiApplication>
 #include <QFile>
 #include <QFont>
+#include <QFontDatabase>
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -41,24 +42,22 @@ class TestWindowUi : public QObject
 {
     Q_OBJECT
 private slots:
-    void ledAlwaysFullScreen_data();
+    void initTestCase();
     void ledAlwaysFullScreen();
     void operatorChrome();
     void cancelExitKeepsLedVisible();
     void thresholdEditor();
-    void simulationIsMarkedAndIsolated();
+    void sourceDraftsAndDisplayReassignment();
 };
 
-void TestWindowUi::ledAlwaysFullScreen_data()
+void TestWindowUi::initTestCase()
 {
-    QTest::addColumn<bool>("preview");
-    QTest::newRow("legacy-windowed-production") << false;
-    QTest::newRow("legacy-windowed-preview") << true;
+    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Inter/Inter-Regular.otf")) >= 0);
+    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Inter/Inter-Bold.otf")) >= 0);
 }
 
 void TestWindowUi::ledAlwaysFullScreen()
 {
-    QFETCH(bool, preview);
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
     qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
@@ -69,7 +68,7 @@ void TestWindowUi::ledAlwaysFullScreen()
     config.branding.branchName = QStringLiteral("Chi nhánh tổng công ty điện lực TKV - CTCP");
     config.branding.address =
         QStringLiteral("Ngõ 517 đường Dương Tự Minh, Phường Quan Triều, tỉnh Thái Nguyên");
-    config.display.targetScreenName = QStringLiteral("Test LED");
+    config.display.targetScreenName = QStringLiteral("B Test LED");
     config.display.fullScreen = false;
     const QString configPath = temp.filePath(QStringLiteral("config.json"));
     ConfigStore store(configPath);
@@ -79,7 +78,7 @@ void TestWindowUi::ledAlwaysFullScreen()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(configPath, preview);
+    controller.initialize(configPath);
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("ledParameterModel"), &led);
@@ -92,10 +91,7 @@ void TestWindowUi::ledAlwaysFullScreen()
     QTRY_COMPARE(window->visibility(), QWindow::FullScreen);
     QVERIFY(window->flags().testFlag(Qt::FramelessWindowHint));
     QVERIFY(window->screen());
-    if (preview)
-        QCOMPARE(window->geometry(), QGuiApplication::primaryScreen()->geometry());
-    else
-        QCOMPARE(window->screen()->name(), QStringLiteral("Test LED"));
+    QCOMPARE(window->screen()->name(), QStringLiteral("B Test LED"));
     QCOMPARE(window->geometry(), window->screen()->geometry());
 
     auto *board = findVisualItem(window->contentItem(), QStringLiteral("ledBoard"));
@@ -125,11 +121,49 @@ void TestWindowUi::ledAlwaysFullScreen()
     QVERIFY(!branch->property("truncated").toBool());
     QVERIFY(!company->property("truncated").toBool());
     QVERIFY(!address->property("truncated").toBool());
+    QCOMPARE(address->property("font").value<QFont>().pixelSize(), 22);
+    for (const QString &name : {QStringLiteral("exhaustCaption"), QStringLiteral("wastewaterCaption")}) {
+        auto *caption = findVisualItem(board, name);
+        QVERIFY(caption);
+        QCOMPARE(caption->property("font").value<QFont>().pixelSize(), 30);
+        QVERIFY(caption->setProperty(
+            "text", QStringLiteral("Mốc đo không đồng bộ: 00:00:00 – 23:59:59 31/12/9999")));
+        QVERIFY2(!caption->property("truncated").toBool(), qPrintable(name));
+        QVERIFY2(caption->property("contentHeight").toDouble() <= caption->height() + 1,
+                 qPrintable(name));
+    }
     for (int i = 0; i < 12; ++i) {
         auto *tile = findVisualItem(board, QStringLiteral("parameterTile_%1").arg(i));
         QVERIFY2(tile, qPrintable(QStringLiteral("Thiếu ô %1").arg(i)));
         QVERIFY(tile->x() >= 0 && tile->x() + tile->width() <= board->width());
         QVERIFY(tile->y() >= 0 && tile->y() + tile->height() <= 821);
+        auto *symbol = tile->findChild<QQuickItem *>(QStringLiteral("parameterSymbol"));
+        auto *unit = tile->findChild<QQuickItem *>(QStringLiteral("parameterUnit"));
+        auto *value = tile->findChild<QQuickItem *>(QStringLiteral("readingValue"));
+        auto *range = tile->findChild<QQuickItem *>(QStringLiteral("measurementRange"));
+        auto *status = tile->findChild<QQuickItem *>(QStringLiteral("tileStatus"));
+        auto *statusText = tile->findChild<QQuickItem *>(QStringLiteral("statusLabelText"));
+        QVERIFY(symbol);
+        QVERIFY(unit);
+        QVERIFY(value);
+        QVERIFY(range);
+        QVERIFY(status);
+        QVERIFY(statusText);
+        QCOMPARE(symbol->property("font").value<QFont>().pixelSize(), 36);
+        QCOMPARE(unit->property("font").value<QFont>().pixelSize(), 29);
+        QCOMPARE(range->property("font").value<QFont>().pixelSize(), 29);
+        QCOMPARE(status->property("fontSize").toInt(), 26);
+        QVERIFY(symbol->x() + symbol->width() <= unit->x());
+        QVERIFY(symbol->y() + symbol->height() <= value->y());
+        QVERIFY(unit->y() + unit->height() <= value->y());
+        QVERIFY(value->y() + value->height() <= range->y());
+        QVERIFY(range->y() + range->height() <= status->y());
+        QVERIFY(status->y() + status->height() <= tile->height());
+        QVERIFY(!unit->property("truncated").toBool());
+        QVERIFY(range->property("contentWidth").toDouble() <= range->width() + 1);
+        QVERIFY(range->property("contentHeight").toDouble() <= range->height() + 1);
+        QVERIFY(statusText->property("contentWidth").toDouble() <= statusText->width() + 1);
+        QVERIFY(statusText->property("contentHeight").toDouble() <= status->height() - 2);
     }
     auto *flow = findVisualItem(board, QStringLiteral("parameterTile_6"));
     auto *ph = findVisualItem(board, QStringLiteral("parameterTile_8"));
@@ -147,7 +181,12 @@ void TestWindowUi::ledAlwaysFullScreen()
     auto *phRange = ph->findChild<QQuickItem *>(QStringLiteral("measurementRange"));
     QVERIFY(phRange);
     QCOMPARE(phRange->property("text").toString(), QStringLiteral("(6 – 9)"));
+    QVERIFY(ph->setProperty("rangeText", QStringLiteral("6.123456789012345 – 8.123456789012345")));
+    QVERIFY(phRange->property("contentWidth").toDouble() <= phRange->width() + 1);
     QVERIFY(flow->setProperty("valueText", QStringLiteral("1000000")));
+    QTRY_VERIFY(value->property("contentWidth").toDouble() <= value->width() + 1);
+    QVERIFY(value->property("contentHeight").toDouble() <= value->height() + 1);
+    QVERIFY(flow->setProperty("valueText", QStringLiteral("-538964")));
     QTRY_VERIFY(value->property("contentWidth").toDouble() <= value->width() + 1);
     QTRY_VERIFY(range->property("contentWidth").toDouble() <= range->width() + 1);
     QVERIFY(flow->setProperty("stateKey", QStringLiteral("withinLimit")));
@@ -163,25 +202,63 @@ void TestWindowUi::ledAlwaysFullScreen()
     QCOMPARE(range->property("color").value<QColor>(), QColor("#FF5252"));
     QVERIFY(flow->setProperty("stateKey", QStringLiteral("unknownStatus")));
     QCOMPARE(status->property("text").toString(), QStringLiteral("LỖI TRẠNG THÁI"));
+    auto *statusLabel = flow->findChild<QQuickItem *>(QStringLiteral("statusLabelText"));
+    QVERIFY(statusLabel);
+    QVERIFY(flow->setProperty("stateKey", QStringLiteral("withinLimit")));
+    QCOMPARE(statusLabel->property("color").value<QColor>(), QColor("#00E5FF"));
+    QVERIFY(flow->setProperty("stateKey", QStringLiteral("measuring")));
+    QCOMPARE(statusLabel->property("color").value<QColor>(), QColor("#00E5FF"));
+    QVERIFY(flow->setProperty("stateKey", QStringLiteral("exceedsLimit")));
+    QCOMPARE(statusLabel->property("color").value<QColor>(), QColor("#FF5252"));
+    const QList<QPair<QString, QString>> statuses = {
+        {QStringLiteral("noData"), QStringLiteral("CHƯA CÓ DỮ LIỆU")},
+        {QStringLiteral("measuring"), QStringLiteral("ĐANG ĐO")},
+        {QStringLiteral("exceedsLimit"), QStringLiteral("ĐANG ĐO · VƯỢT NGƯỠNG")},
+        {QStringLiteral("deviceFault"), QStringLiteral("LỖI THIẾT BỊ")},
+        {QStringLiteral("calibrating"), QStringLiteral("HIỆU CHUẨN")},
+        {QStringLiteral("maintenance"), QStringLiteral("BẢO TRÌ")},
+        {QStringLiteral("stale"), QStringLiteral("DỮ LIỆU CŨ")},
+        {QStringLiteral("futureTimestamp"), QStringLiteral("SAI GIỜ ĐO")},
+        {QStringLiteral("invalid"), QStringLiteral("DỮ LIỆU LỖI")},
+        {QStringLiteral("unitMismatch"), QStringLiteral("SAI ĐƠN VỊ")},
+        {QStringLiteral("conflict"), QStringLiteral("XUNG ĐỘT")},
+        {QStringLiteral("unknownStatus"), QStringLiteral("LỖI TRẠNG THÁI")},
+    };
+    for (const auto &[key, text] : statuses) {
+        QVERIFY(flow->setProperty("statusText", text));
+        QVERIFY(flow->setProperty("stateKey", key));
+        QCOMPARE(status->property("text").toString(), text);
+        QVERIFY2(statusLabel->property("contentWidth").toDouble() <= statusLabel->width() + 1,
+                 qPrintable(key));
+        QVERIFY2(statusLabel->property("contentHeight").toDouble() <= status->height() - 2,
+                 qPrintable(key));
+        QVERIFY2(statusLabel->x() >= 0 && statusLabel->x() + statusLabel->width() <= status->width(),
+                 qPrintable(key));
+    }
     auto *within = findVisualItem(board, QStringLiteral("legendWithin"));
     auto *exceeds = findVisualItem(board, QStringLiteral("legendExceeds"));
     QVERIFY(within);
     QVERIFY(exceeds);
     QVERIFY(within->y() >= 809 && within->y() + within->height() < exceeds->y());
     QVERIFY(exceeds->y() + exceeds->height() <= board->height());
+    for (auto *legend : {within, exceeds}) {
+        auto *text = legend->findChild<QQuickItem *>(QStringLiteral("legendText"));
+        QVERIFY(text);
+        QCOMPARE(text->property("font").value<QFont>().pixelSize(), 32);
+        QVERIFY(text->property("contentWidth").toDouble() <= text->width() + 1);
+        QVERIFY(text->property("contentHeight").toDouble() <= text->height() + 1);
+    }
 
     // Khi hủy chọn output ở chế độ vận hành, LED phải ẩn, không chuyển
     // sang màn PC; chọn lại output thì vẫn toàn màn hình, không viền.
-    if (!preview) {
-        QCOMPARE(controller.updateTargetScreen(QString()), QString());
-        QTRY_COMPARE(window->visibility(), QWindow::Hidden);
-        QCOMPARE(controller.updateTargetScreen(QStringLiteral("Test LED")), QString());
-        QTRY_COMPARE(window->visibility(), QWindow::FullScreen);
-        QCOMPARE(window->screen()->name(), QStringLiteral("Test LED"));
-        emit controller.screensChanged();
-        QTRY_COMPARE(window->visibility(), QWindow::FullScreen);
-        QCOMPARE(window->screen()->name(), QStringLiteral("Test LED"));
-    }
+    QCOMPARE(controller.updateTargetScreen(QString()), QString());
+    QTRY_COMPARE(window->visibility(), QWindow::Hidden);
+    QCOMPARE(controller.updateTargetScreen(QStringLiteral("B Test LED")), QString());
+    QTRY_COMPARE(window->visibility(), QWindow::FullScreen);
+    QCOMPARE(window->screen()->name(), QStringLiteral("B Test LED"));
+    emit controller.screensChanged();
+    QTRY_COMPARE(window->visibility(), QWindow::FullScreen);
+    QCOMPARE(window->screen()->name(), QStringLiteral("B Test LED"));
     object.reset();
     controller.shutdown();
 }
@@ -194,7 +271,7 @@ void TestWindowUi::operatorChrome()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath(QStringLiteral("config.json")), false);
+    controller.initialize(temp.filePath(QStringLiteral("config.json")));
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
@@ -205,9 +282,15 @@ void TestWindowUi::operatorChrome()
     QVERIFY2(object, qPrintable(component.errorString()));
     auto *window = qobject_cast<QQuickWindow *>(object.get());
     QVERIFY(window);
-    QTRY_COMPARE(window->visibility(), QWindow::Windowed);
+    // Khởi động: cửa sổ cấu hình tự sang màn còn lại (màn chính) và phóng to.
+    QTRY_COMPARE(window->visibility(), QWindow::Maximized);
+    QCOMPARE(window->screen(), QGuiApplication::primaryScreen());
     QVERIFY(!window->property("clockText").isValid());
     QVERIFY(window->findChild<QQuickItem *>(QStringLiteral("operatorLogo")));
+
+    // Trở về cửa sổ để kiểm tra bố cục theo các độ rộng khác nhau.
+    window->showNormal();
+    QTRY_COMPARE(window->visibility(), QWindow::Windowed);
 
     // Header và dòng dữ liệu phải dùng cùng độ rộng kể cả khi có thanh cuộn.
     QVERIFY(window->setProperty("pageIndex", 1));
@@ -301,8 +384,7 @@ void TestWindowUi::cancelExitKeepsLedVisible()
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath(QStringLiteral("config.json")), true, true,
-                          QStringLiteral("Bình thường"));
+    controller.initialize(temp.filePath(QStringLiteral("config.json")));
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
@@ -345,7 +427,7 @@ void TestWindowUi::thresholdEditor()
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
     const QString path = temp.filePath(QStringLiteral("config.json"));
-    controller.initialize(path, true, true, QStringLiteral("Bình thường"));
+    controller.initialize(path);
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
@@ -416,40 +498,64 @@ void TestWindowUi::thresholdEditor()
     controller.shutdown();
 }
 
-void TestWindowUi::simulationIsMarkedAndIsolated()
+void TestWindowUi::sourceDraftsAndDisplayReassignment()
 {
     QTemporaryDir temp;
     QVERIFY(temp.isValid());
     qputenv("CAONGAN_LED_BASE_DIR", temp.path().toUtf8());
+    const QString gasDir = temp.filePath(QStringLiteral("in-gas"));
+    QVERIFY(QDir().mkpath(gasDir));
+
     LedParameterModel led;
     DiagnosticsModel diagnostics;
     ApplicationController controller(&led, &diagnostics);
-    controller.initialize(temp.filePath(QStringLiteral("config.json")), true, true,
-                          QStringLiteral("Vượt ngưỡng"));
-    QVERIFY(controller.simulationActive());
-    QCOMPARE(controller.statusSummary(), QStringLiteral("DỮ LIỆU MÔ PHỎNG"));
-    QVERIFY(!QFile::exists(AppPaths::databasePath()));
+    controller.initialize(temp.filePath(QStringLiteral("config.json")));
 
     QQmlEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnosticsModel"), &diagnostics);
     engine.rootContext()->setContextProperty(QStringLiteral("ledParameterModel"), &led);
-    QQmlComponent component(&engine, QUrl::fromLocalFile(QStringLiteral(CAONGAN_QML_SOURCE_DIR "/LedWindow.qml")));
+    QQmlComponent component(&engine, QUrl::fromLocalFile(QStringLiteral(CAONGAN_QML_SOURCE_DIR "/OperatorWindow.qml")));
     QVERIFY2(component.isReady(), qPrintable(component.errorString()));
     std::unique_ptr<QObject> object(component.create());
     QVERIFY2(object, qPrintable(component.errorString()));
     auto *window = qobject_cast<QQuickWindow *>(object.get());
     QVERIFY(window);
-    auto *notice = findVisualItem(window->contentItem(), QStringLiteral("simulationNotice"));
-    QVERIFY(notice);
-    QVERIFY(notice->isVisible());
-    QCOMPARE(notice->property("text").toString(), QStringLiteral("DỮ LIỆU MÔ PHỎNG"));
-    auto *so2 = findVisualItem(window->contentItem(), QStringLiteral("parameterTile_3"));
-    QVERIFY(so2);
-    QCOMPARE(so2->property("stateKey").toString(), QStringLiteral("exceedsLimit"));
-    if (qEnvironmentVariableIsSet("CAONGAN_LED_TEST_SCREENSHOT")) {
-        QTRY_VERIFY(window->isExposed());
-        QVERIFY(window->grabWindow().save(qEnvironmentVariable("CAONGAN_LED_TEST_SCREENSHOT")));
-    }
+    QTRY_COMPARE(window->visibility(), QWindow::Maximized);
+    QCOMPARE(window->screen()->name(), QStringLiteral("A Test operator"));
+    QVERIFY(window->setProperty("pageIndex", 0));
+    QTRY_VERIFY(window->isExposed());
+
+    auto *staleSpin = findVisualItem(window->contentItem(), QStringLiteral("sourceStaleSpin_khi-thai"));
+    auto *staleUnit = findVisualItem(window->contentItem(), QStringLiteral("sourceStaleUnit_khi-thai"));
+    QVERIFY(staleSpin);
+    QVERIFY(staleUnit);
+    const QPointF spinPos = staleSpin->mapToScene(QPointF(0, 0));
+    const QPointF unitPos = staleUnit->mapToScene(QPointF(0, 0));
+    QVERIFY2(unitPos.y() < spinPos.y() + staleSpin->height(), "Nhãn giây bị rớt xuống dòng dưới");
+    QVERIFY2(unitPos.x() >= spinPos.x() + staleSpin->width(), "Nhãn giây không nằm cạnh SpinBox");
+
+    auto *waterFolder = findVisualItem(window->contentItem(), QStringLiteral("sourceFolderField_nuoc-thai"));
+    QVERIFY(waterFolder);
+    const QPoint waterCenter = waterFolder->mapToScene(
+        QPointF(waterFolder->width() / 2, waterFolder->height() / 2)).toPoint();
+    QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, waterCenter);
+    const QByteArray draftPath = QByteArrayLiteral("/tmp/unsaved-water");
+    for (const char ch : draftPath)
+        QTest::keyClick(window, ch);
+    QCOMPARE(waterFolder->property("text").toString(), QString::fromLatin1(draftPath));
+
+    QCOMPARE(controller.updateSource(QStringLiteral("khi-thai"), gasDir, QStringLiteral("KHITO1"), 900),
+             QString());
+    auto *waterFolderAfter = findVisualItem(window->contentItem(), QStringLiteral("sourceFolderField_nuoc-thai"));
+    QVERIFY(waterFolderAfter);
+    QCOMPARE(waterFolderAfter->property("text").toString(), QStringLiteral("/tmp/unsaved-water"));
+
+    // Chọn màn chính làm LED thì cửa sổ vận hành phải tự dời sang màn còn lại.
+    QCOMPARE(controller.updateTargetScreen(QStringLiteral("A Test operator")), QString());
+    QCOMPARE(controller.operatorScreenName(), QStringLiteral("B Test LED"));
+    QTRY_COMPARE(window->screen()->name(), QStringLiteral("B Test LED"));
+
     object.reset();
     controller.shutdown();
 }

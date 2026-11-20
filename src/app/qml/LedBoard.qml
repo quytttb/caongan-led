@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Window
 
 // Bố cục 1600 × 960 theo tỉ lệ màn vật lý 1600 × 960 mm.
 // Đây là tọa độ logic, không tự đặt độ phân giải tín hiệu của Windows.
@@ -36,9 +35,9 @@ Item {
     // ---------------------------------------------------------------------
     Rectangle {
         x: 20
-        y: 16
+        y: 12
         width: 1560
-        height: 108
+        height: 116
         color: "#000000"
         radius: 6
         border.width: 1
@@ -62,11 +61,11 @@ Item {
             text: (root.brand.branchName || "").toUpperCase()
             color: "#FFFFFF"
             font.family: "Inter"
-            font.pixelSize: 21
+            font.pixelSize: 23
             font.bold: true
             elide: Text.ElideRight
             visible: text.length > 0
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
 
         Text {
@@ -81,7 +80,7 @@ Item {
             font.pixelSize: 34
             font.bold: true
             elide: Text.ElideRight
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
 
         Text {
@@ -92,10 +91,10 @@ Item {
             text: root.brand.address || ""
             color: "#FFFFFF"
             font.family: "Inter"
-            font.pixelSize: 18
+            font.pixelSize: 22
             elide: Text.ElideRight
             visible: text.length > 0
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
 
         Text {
@@ -109,7 +108,7 @@ Item {
             font.bold: true
             font.letterSpacing: 1
             horizontalAlignment: Text.AlignRight
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
 
         Text {
@@ -119,9 +118,9 @@ Item {
             text: root.dateText
             color: "#FFFFFF"
             font.family: "Inter"
-            font.pixelSize: 28
+            font.pixelSize: 31
             horizontalAlignment: Text.AlignRight
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
 
     }
@@ -148,10 +147,11 @@ Item {
         font.pixelSize: 30
         font.bold: true
         verticalAlignment: Text.AlignVCenter
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     Text {
+        objectName: "exhaustCaption"
         x: 410
         y: 130
         width: 1170
@@ -159,11 +159,11 @@ Item {
         text: app.exhaustCaption
         color: "#FFFFFF"
         font.family: "Inter"
-        font.pixelSize: 27
+        font.pixelSize: 30
         horizontalAlignment: Text.AlignRight
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideLeft
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     Rectangle {
@@ -185,10 +185,11 @@ Item {
         font.pixelSize: 30
         font.bold: true
         verticalAlignment: Text.AlignVCenter
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     Text {
+        objectName: "wastewaterCaption"
         x: 410
         y: 572
         width: 1170
@@ -196,11 +197,11 @@ Item {
         text: app.wastewaterCaption
         color: "#FFFFFF"
         font.family: "Inter"
-        font.pixelSize: 27
+        font.pixelSize: 30
         horizontalAlignment: Text.AlignRight
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideLeft
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     // ---------------------------------------------------------------------
@@ -223,8 +224,6 @@ Item {
             valueText: model.valueText
             statusText: model.statusText
             stateKey: model.stateKey
-            timeText: model.timeText
-            detailText: model.detailText
         }
     }
 
@@ -240,45 +239,33 @@ Item {
         border.color: accent
 
         Text {
+            objectName: "legendText"
             anchors.fill: parent
             anchors.margins: 4
             text: parent.message
             color: parent.accent
             font.family: "Inter"
             font.bold: true
-            font.pixelSize: 28
-            minimumPixelSize: 20
+            font.pixelSize: 32
+            minimumPixelSize: 24
             fontSizeMode: Text.Fit
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
         }
     }
 
     LegendBadge {
         objectName: "legendWithin"
-        y: 821
+        y: 817
         accent: "#00E5FF"
         message: "MÀU XANH: NẰM TRONG GIỚI HẠN CHO PHÉP"
     }
 
     LegendBadge {
         objectName: "legendExceeds"
-        y: 876
+        y: 870
         accent: "#FF5252"
         message: "SỐ ĐỎ: VƯỢT NGƯỠNG  •  Ô ĐỎ: LỖI / HIỆU CHUẨN / BẢO TRÌ"
-    }
-
-    Text {
-        objectName: "simulationNotice"
-        visible: app.simulationActive
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 929
-        text: "DỮ LIỆU MÔ PHỎNG"
-        color: "#FFD60A"
-        font.family: "Inter"
-        font.pixelSize: 20
-        font.bold: true
-        renderType: Text.NativeRendering
     }
 }

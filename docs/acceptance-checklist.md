@@ -23,7 +23,7 @@ Ghi phiên bản/hash package, ngày giờ, người thử/duyệt, máy/Windows
 
 - [ ] Xác minh độ phân giải tín hiệu qua HDMI/quang, EDID và mapping trên màn vật lý 1600×960 mm; không cắt, kéo giãn hay méo. Khung logic 1600×960 không chứng minh độ phân giải pixel của LED.
 - [ ] Đủ 12 ô không cuộn, Flow 6 chữ số/âm/số dài không elide; đọc rõ tiếng Việt và ký hiệu hóa học từ khoảng cách thực, cả ngày/đêm. Branding/footer được duyệt.
-- [ ] Extend/Duplicate/1 màn, DPI 100/125/150%, mất/cắm lại LED, sleep/wake/reboot; LED không tự che cửa sổ vận hành khi mất màn. Kiểm tra không lộ popup vận hành lên LED.
+- [ ] Extend/Duplicate/1 màn, DPI 100/125/150%, mất/cắm lại LED, sleep/wake/reboot; kiểm tra tự nhận đúng màn ngoài cho LED và cửa sổ cấu hình phóng to trên màn còn lại; LED không tự che cửa sổ vận hành khi mất màn. Kiểm tra không lộ popup vận hành lên LED.
 - [ ] Soak ít nhất **72 giờ** trên máy đích/tương đương; ghi CPU, RAM, disk, log/DB, latency, lỗi và phục hồi nguồn. Pilot bản sao và phương án rollback có người chịu trách nhiệm.
 
 Kết luận: **CHƯA NGHIỆM THU**. Người duyệt / ngày / ghi chú: ____________________

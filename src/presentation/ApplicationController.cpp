@@ -2,11 +2,9 @@
 
 #include "DiagnosticsModel.h"
 #include "LedParameterModel.h"
-#include "SimulationFactory.h"
 #include "domain/ConfigCodec.h"
 #include "domain/DisplayState.h"
 #include "domain/ParameterCatalog.h"
-#include "domain/Tt10Parser.h"
 #include "domain/Tt10Time.h"
 #include "ingestion/IngestionService.h"
 #include "utils/AppPaths.h"
@@ -20,7 +18,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
-#include <QLocale>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -35,11 +32,6 @@ namespace caongan {
 namespace {
 constexpr qint64 kLogPreviewBytes = 1024 * 1024;
 constexpr qint64 kLogExportMaxBytes = 64 * 1024 * 1024;
-
-QString thresholdNumber(double value)
-{
-    return QString::number(value, 'f', QLocale::FloatingPointShortest);
-}
 
 bool parseThresholdNumber(const QString &text, double *value)
 {
@@ -93,6 +85,44 @@ QList<QScreen *> matchingScreens(const QString &name)
     }
     return matches;
 }
+
+QScreen *largestScreenExcept(const QScreen *excluded)
+{
+    QScreen *best = nullptr;
+    qint64 bestArea = -1;
+    for (QScreen *screen : QGuiApplication::screens()) {
+        if (!screen || screen == excluded)
+            continue;
+        const QRect geometry = screen->geometry();
+        const qint64 area = static_cast<qint64>(geometry.width()) * geometry.height();
+        if (!best || area > bestArea
+            || (area == bestArea && screen->name() < best->name())) {
+            best = screen;
+            bestArea = area;
+        }
+    }
+    return best;
+}
+
+bool placeWindowOnScreen(QWindow *window, QScreen *screen)
+{
+    if (!window || !screen)
+        return false;
+    // Di chuyển trước khi hiện toàn màn hình, kể cả khi các màn nằm
+    // trên cùng một virtual desktop (setScreen không tự dời tọa độ).
+    window->setScreen(screen);
+    window->setPosition(screen->geometry().topLeft());
+    return true;
+}
+
+void applyLogOptions(const StorageConfig &storage)
+{
+    LogOptions options;
+    options.maxFileBytes = storage.logMaxFileBytes;
+    options.maxTotalBytes = storage.logMaxTotalBytes;
+    options.retentionDays = storage.logRetentionDays;
+    updateLogOptions(options);
+}
 } // namespace
 
 ApplicationController::ApplicationController(LedParameterModel *ledModel,
@@ -109,17 +139,11 @@ ApplicationController::~ApplicationController()
     shutdown();
 }
 
-void ApplicationController::initialize(const QString &configPathOverride,
-                                       bool previewMode,
-                                       bool simulate,
-                                       const QString &scenario)
+void ApplicationController::initialize(const QString &configPathOverride)
 {
     if (m_initialized)
         return;
     m_initialized = true;
-    m_previewMode = previewMode;
-    m_simulationActive = simulate && previewMode;
-    m_simulationScenario = scenario;
 
     AppPaths::ensureDirectories();
 
@@ -127,7 +151,7 @@ void ApplicationController::initialize(const QString &configPathOverride,
         ? AppPaths::configFilePath()
         : configPathOverride;
     m_configStore = std::make_unique<ConfigStore>(path);
-    qInfo() << "[controller] Khởi tạo với cấu hình" << path << "preview" << previewMode;
+    qInfo() << "[controller] Khởi tạo với cấu hình" << path;
 
     QStringList messages;
     loadConfiguration(&messages);
@@ -137,11 +161,8 @@ void ApplicationController::initialize(const QString &configPathOverride,
     connect(qGuiApp, &QGuiApplication::screenRemoved, this, &ApplicationController::refreshScreens);
     connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, &ApplicationController::refreshScreens);
 
-    // Preview mô phỏng không mở database và không theo dõi nguồn thật.
-    if (m_simulationActive)
-        applySimulation();
-    else
-        startIngestion();
+    startIngestion();
+    emit displayAssignmentChanged();
     updateWindowVisibility();
     updateStatusSummary();
 }
@@ -200,6 +221,10 @@ void ApplicationController::startIngestion()
             this, &ApplicationController::onDiagnosticsBatch);
     connect(m_ingestion, &IngestionService::sourceStatusChanged,
             this, &ApplicationController::onSourceStatusChanged);
+    connect(m_ingestion, &IngestionService::sourceLastFileChanged,
+            this, &ApplicationController::onSourceLastFileChanged);
+    connect(m_ingestion, &IngestionService::storageHealthChanged,
+            this, &ApplicationController::onStorageHealthChanged);
 
     m_ingestionThread->start();
 
@@ -246,6 +271,7 @@ bool ApplicationController::loadConfiguration(QStringList *messages)
     }
     if (messages)
         *messages = localMessages;
+    applyLogOptions(m_config.storage);
     return status != ConfigStore::LoadStatus::Failed;
 }
 
@@ -275,18 +301,16 @@ QString ApplicationController::commitConfiguration(const AppConfig &next, bool r
     qInfo() << "[config] Đã lưu cấu hình, áp dụng lại nguồn:" << reloadIngestion;
 
     m_config = normalized;
+    applyLogOptions(m_config.storage);
     if (m_configError != QString()) {
         m_configError.clear();
         emit configErrorChanged();
     }
     emit configChanged();
 
-    if (reloadIngestion) {
-        if (m_simulationActive)
-            applySimulation();
-        else
-            sendConfigToIngestion();
-    }
+    if (reloadIngestion)
+        sendConfigToIngestion();
+    emit displayAssignmentChanged();
     updateWindowVisibility();
     updateStatusSummary();
     return {};
@@ -311,10 +335,6 @@ QVariantList ApplicationController::sources() const
         map.insert(QStringLiteral("folder"), source.folder);
         map.insert(QStringLiteral("stationCode"), source.stationCode);
         map.insert(QStringLiteral("staleSeconds"), source.staleAfterSeconds);
-        map.insert(QStringLiteral("futureToleranceSeconds"), source.futureToleranceSeconds);
-        const QVariantMap status = m_sourceStatuses.value(source.id).toMap();
-        map.insert(QStringLiteral("available"), status.value(QStringLiteral("available"), false));
-        map.insert(QStringLiteral("statusMessage"), status.value(QStringLiteral("message"), QString()));
         list.append(map);
     }
     return list;
@@ -327,11 +347,7 @@ QVariantList ApplicationController::channelSettings() const
         QVariantMap map;
         map.insert(QStringLiteral("id"), channel.id);
         map.insert(QStringLiteral("symbol"), channel.symbol);
-        map.insert(QStringLiteral("displayName"), channel.displayName);
-        map.insert(QStringLiteral("group"), channelGroupId(channel.group));
-        map.insert(QStringLiteral("groupTitle"), channelGroupTitle(channel.group));
         map.insert(QStringLiteral("unit"), channel.unit);
-        map.insert(QStringLiteral("decimals"), channel.decimals);
         map.insert(QStringLiteral("sourceName"),
                    m_config.sourceById(channel.sourceId)
                        ? m_config.sourceById(channel.sourceId)->name
@@ -339,13 +355,12 @@ QVariantList ApplicationController::channelSettings() const
         map.insert(QStringLiteral("rangeText"), channel.rangeText);
         map.insert(QStringLiteral("thresholdLow"),
                    channel.threshold.hasLow
-                       ? thresholdNumber(channel.threshold.low)
+                       ? formatShortestNumber(channel.threshold.low)
                        : QString());
         map.insert(QStringLiteral("thresholdHigh"),
                    channel.threshold.hasHigh
-                       ? thresholdNumber(channel.threshold.high)
+                       ? formatShortestNumber(channel.threshold.high)
                        : QString());
-        map.insert(QStringLiteral("staleSeconds"), channel.staleAfterSeconds);
         list.append(map);
     }
     return list;
@@ -363,14 +378,14 @@ QVariantList ApplicationController::screens() const
         const QRect geometry = screen->geometry();
         map.insert(QStringLiteral("name"), name);
         map.insert(QStringLiteral("label"),
-                   QStringLiteral("%1  (%2×%3)%4")
+                   QStringLiteral("%1  (%2×%3)%4%5")
                        .arg(name.isEmpty() ? QStringLiteral("Màn hình không tên") : name)
                        .arg(geometry.width())
                        .arg(geometry.height())
-                       .arg(screen == primary ? QStringLiteral(" — màn chính") : QString()));
-        map.insert(QStringLiteral("primary"), screen == primary);
-        map.insert(QStringLiteral("width"), geometry.width());
-        map.insert(QStringLiteral("height"), geometry.height());
+                       .arg(screen == primary ? QStringLiteral(" — màn chính")
+                                              : QStringLiteral(" — màn ngoài"))
+                       .arg(screen == ledScreen() ? QStringLiteral(" (đang chọn LED)") : QString()));
+        map.insert(QStringLiteral("external"), screen != primary);
         list.append(map);
     }
     return list;
@@ -381,27 +396,60 @@ QString ApplicationController::targetScreenName() const
     return m_config.display.targetScreenName;
 }
 
+QString ApplicationController::ledScreenName() const
+{
+    const QScreen *screen = ledScreen();
+    return screen ? screen->name() : QString();
+}
+
+QString ApplicationController::operatorScreenName() const
+{
+    const QScreen *screen = operatorScreen();
+    return screen ? screen->name() : QString();
+}
+
+QScreen *ApplicationController::externalScreen() const
+{
+    // Màn ngoài = mọi màn không phải màn chính. Nếu có nhiều màn ngoài (ví dụ
+    // hai TV), chọn màn có diện tích pixel lớn nhất; tên dùng để phân xử ổn
+    // định khi diện tích bằng nhau.
+    return largestScreenExcept(QGuiApplication::primaryScreen());
+}
+
+QScreen *ApplicationController::ledScreen() const
+{
+    if (m_config.display.autoDetectExternal)
+        return externalScreen();
+
+    const QString target = m_config.display.targetScreenName.trimmed();
+    const QList<QScreen *> matches = matchingScreens(target);
+    if (matches.size() == 1)
+        return matches.constFirst();
+    return nullptr;
+}
+
+QScreen *ApplicationController::operatorScreen() const
+{
+    QScreen *primary = QGuiApplication::primaryScreen();
+
+    QScreen *led = ledScreen();
+    if (!led || led != primary)
+        return primary;
+
+    // LED chọn thủ công trên màn chính: đặt cửa sổ cấu hình sang màn còn lại
+    // để người vận hành vẫn thao tác được.
+    QScreen *fallback = largestScreenExcept(led);
+    return fallback ? fallback : primary;
+}
+
 bool ApplicationController::positionLedWindow(QWindow *window) const
 {
-    if (!window)
-        return false;
-    QScreen *screen = nullptr;
-    if (m_previewMode) {
-        screen = QGuiApplication::primaryScreen();
-    } else {
-        const QString target = m_config.display.targetScreenName.trimmed();
-        const QList<QScreen *> matches = matchingScreens(target);
-        if (matches.size() != 1)
-            return false;
-        screen = matches.constFirst();
-    }
-    if (!screen)
-        return false;
-    // Di chuyển trước khi hiện toàn màn hình, kể cả khi các màn nằm
-    // trên cùng một virtual desktop (setScreen không tự dời tọa độ).
-    window->setScreen(screen);
-    window->setPosition(screen->geometry().topLeft());
-    return true;
+    return placeWindowOnScreen(window, ledScreen());
+}
+
+bool ApplicationController::positionOperatorWindow(QWindow *window) const
+{
+    return placeWindowOnScreen(window, operatorScreen());
 }
 
 QString ApplicationController::configPath() const
@@ -436,6 +484,7 @@ QString ApplicationController::updateSource(const QString &id,
 {
     AppConfig next = m_config;
     bool found = false;
+    bool targetChanged = false;
     for (SourceConfig &source : next.sources) {
         if (source.id != id)
             continue;
@@ -444,14 +493,16 @@ QString ApplicationController::updateSource(const QString &id,
         if (trimmedStation.isEmpty())
             return QStringLiteral("Mã trạm không được để trống");
         if (staleSeconds < 10)
-            return QStringLiteral("Stale timeout phải >= 10 giây");
+            return QStringLiteral("Thời gian coi dữ liệu cũ phải >= 10 giây");
 
         const QString trimmedFolder = folder.trimmed();
         if (!trimmedFolder.isEmpty() && !QDir::isAbsolutePath(trimmedFolder))
             return QStringLiteral("Thư mục nguồn phải là đường dẫn tuyệt đối");
-        source.folder = trimmedFolder.isEmpty() ? QString() : QDir::cleanPath(trimmedFolder);
-        if (source.folder == QLatin1String("."))
-            source.folder.clear();
+        const QString cleanedFolder = trimmedFolder.isEmpty() ? QString() : QDir::cleanPath(trimmedFolder);
+        const QString finalFolder = (cleanedFolder == QLatin1String(".")) ? QString() : cleanedFolder;
+        targetChanged = (QDir::cleanPath(source.folder) != finalFolder)
+                        || (source.stationCode.compare(trimmedStation, Qt::CaseInsensitive) != 0);
+        source.folder = finalFolder;
         source.stationCode = trimmedStation;
         source.staleAfterSeconds = staleSeconds;
 
@@ -466,7 +517,16 @@ QString ApplicationController::updateSource(const QString &id,
     if (!found)
         return QStringLiteral("Không tìm thấy nguồn %1").arg(id);
 
-    return commitConfiguration(next, true);
+    const QString error = commitConfiguration(next, true);
+    if (error.isEmpty() && targetChanged) {
+        const bool hadLastFile = m_sourceLastFiles.remove(id) > 0
+                                 || m_sourceStatuses.value(id).toMap().contains(QStringLiteral("lastFileText"));
+        if (hadLastFile) {
+            syncSourceStatusLastFile(id);
+            emit sourceStatusesChanged();
+        }
+    }
+    return error;
 }
 
 QString ApplicationController::validateThreshold(const QString &id,
@@ -510,16 +570,22 @@ QString ApplicationController::updateThreshold(const QString &id,
     if (error.isEmpty()) {
         writeApplicationLog(LogLevel::Info,
                             QStringLiteral("[config] Ngưỡng %1: %2–%3 -> %4–%5")
-                                .arg(id, thresholdNumber(previous.low), thresholdNumber(previous.high),
-                                     thresholdNumber(low), thresholdNumber(high)));
+                                .arg(id, formatShortestNumber(previous.low),
+                                     formatShortestNumber(previous.high),
+                                     formatShortestNumber(low), formatShortestNumber(high)));
     }
     return error;
 }
 
 QString ApplicationController::updateTargetScreen(const QString &name)
 {
+    return updateDisplayMode(false, name);
+}
+
+QString ApplicationController::updateDisplayMode(bool autoDetectExternal, const QString &name)
+{
     const QString target = name.trimmed();
-    if (!target.isEmpty()) {
+    if (!autoDetectExternal && !target.isEmpty()) {
         const qsizetype count = matchingScreens(target).size();
         if (count == 0)
             return QStringLiteral("Màn hình “%1” không còn kết nối").arg(target);
@@ -528,7 +594,8 @@ QString ApplicationController::updateTargetScreen(const QString &name)
     }
 
     AppConfig next = m_config;
-    next.display.targetScreenName = target;
+    next.display.autoDetectExternal = autoDetectExternal;
+    next.display.targetScreenName = autoDetectExternal ? QString() : target;
     return commitConfiguration(next, false);
 }
 
@@ -536,12 +603,11 @@ QString ApplicationController::reloadConfiguration()
 {
     QStringList messages;
     const bool ok = loadConfiguration(&messages);
-    m_ledModel->setConfig(m_config);
+    if (!m_ingestion)
+        m_ledModel->setConfig(m_config);
+    emit displayAssignmentChanged();
     updateWindowVisibility();
-    if (m_simulationActive)
-        applySimulation();
-    else
-        sendConfigToIngestion();
+    sendConfigToIngestion();
     emit configChanged();
     if (!ok)
         return m_configError;
@@ -555,18 +621,6 @@ void ApplicationController::requestRescan()
     IngestionService *service = m_ingestion;
     QMetaObject::invokeMethod(m_ingestion, [service]() { service->requestRescan(); },
                               Qt::QueuedConnection);
-}
-
-void ApplicationController::applySimulation()
-{
-    const QStringList names = simulationScenarioNames();
-    if (!names.contains(m_simulationScenario))
-        m_simulationScenario = names.value(0);
-    m_lastStates = buildSimulationStates(m_config, m_simulationScenario, tt10::nowUtc());
-    m_ledModel->setStates(m_lastStates);
-    recomputeCaptions(m_lastStates);
-    emit simulationChanged();
-    emit statesChanged();
 }
 
 void ApplicationController::clearDiagnostics()
@@ -703,6 +757,16 @@ QString ApplicationController::exportLog(const QUrl &destination)
     return {};
 }
 
+QString ApplicationController::urlToLocalPath(const QUrl &url) const
+{
+    if (!url.isValid())
+        return {};
+    const QString local = url.isLocalFile() ? url.toLocalFile() : url.toString();
+    if (local.trimmed().isEmpty())
+        return {};
+    return QDir::toNativeSeparators(QDir::cleanPath(local));
+}
+
 void ApplicationController::quit()
 {
     QCoreApplication::quit();
@@ -710,9 +774,6 @@ void ApplicationController::quit()
 
 void ApplicationController::onChannelsChanged(const QVector<caongan::ChannelState> &states)
 {
-    if (m_simulationActive)
-        return;
-    m_lastStates = states;
     m_ledModel->setStates(states);
     recomputeCaptions(states);
     updateStatusSummary();
@@ -724,47 +785,79 @@ void ApplicationController::onDiagnosticsBatch(const QVector<caongan::Diagnostic
     m_diagnosticsModel->appendBatch(entries);
 }
 
+void ApplicationController::syncSourceStatusLastFile(const QString &sourceId)
+{
+    QVariantMap status = m_sourceStatuses.value(sourceId).toMap();
+    const SourceConfig *source = m_config.sourceById(sourceId);
+    if (!status.contains(QStringLiteral("name")))
+        status.insert(QStringLiteral("name"), source ? source->name : sourceId);
+    const QDateTime lastFile = m_sourceLastFiles.value(sourceId);
+    if (lastFile.isValid()) {
+        status.insert(QStringLiteral("lastFileText"),
+                      tt10::formatLocalDisplay(lastFile, QStringLiteral("HH:mm:ss dd/MM/yyyy")));
+    } else {
+        status.remove(QStringLiteral("lastFileText"));
+    }
+    m_sourceStatuses.insert(sourceId, status);
+}
+
 void ApplicationController::onSourceStatusChanged(const QString &sourceId,
                                                   bool available,
                                                   const QString &message)
 {
-    QVariantMap status;
+    QVariantMap status = m_sourceStatuses.value(sourceId).toMap();
     const SourceConfig *source = m_config.sourceById(sourceId);
     status.insert(QStringLiteral("name"), source ? source->name : sourceId);
     status.insert(QStringLiteral("available"), available);
     status.insert(QStringLiteral("message"), message);
     m_sourceStatuses.insert(sourceId, status);
-    m_sourceMessages.insert(sourceId, message);
+    syncSourceStatusLastFile(sourceId);
     updateStatusSummary();
     // Chỉ phát trạng thái nguồn: form cấu hình không được reset khi watcher
     // cập nhật thông điệp "đang theo dõi" vài giây một lần.
     emit sourceStatusesChanged();
 }
 
+void ApplicationController::onSourceLastFileChanged(const QString &sourceId,
+                                                    const QDateTime &lastFileUtc)
+{
+    if (lastFileUtc.isValid())
+        m_sourceLastFiles.insert(sourceId, lastFileUtc);
+    else
+        m_sourceLastFiles.remove(sourceId);
+
+    syncSourceStatusLastFile(sourceId);
+    emit sourceStatusesChanged();
+}
+
+void ApplicationController::onStorageHealthChanged(bool healthy, const QString &message)
+{
+    const QString next = healthy ? QString() : message;
+    if (m_storageWarning == next)
+        return;
+    m_storageWarning = next;
+    emit storageWarningChanged();
+}
+
 void ApplicationController::refreshScreens()
 {
     emit screensChanged();
+    emit displayAssignmentChanged();
     updateWindowVisibility();
 }
 
 void ApplicationController::updateWindowVisibility()
 {
-    if (m_previewMode) {
-        if (!m_ledWindowVisible) {
-            m_ledWindowVisible = true;
-            emit ledWindowChanged();
-        }
-        if (!m_screenWarning.isEmpty()) {
-            m_screenWarning.clear();
-            emit screenWarningChanged();
-        }
-        return;
-    }
-
     bool visible = false;
     QString warning;
     const QString target = m_config.display.targetScreenName.trimmed();
-    if (target.isEmpty()) {
+    if (m_config.display.autoDetectExternal) {
+        visible = ledScreen() != nullptr;
+        if (!visible) {
+            warning = QStringLiteral(
+                "Chưa phát hiện màn hình ngoài — kiểm tra chế độ Extend và đặt màn cấu hình làm màn chính; LED công khai đang ẩn.");
+        }
+    } else if (target.isEmpty()) {
         warning = QStringLiteral("Chưa chọn màn hình LED trong cửa sổ vận hành.");
     } else {
         const qsizetype count = matchingScreens(target).size();
@@ -788,9 +881,7 @@ void ApplicationController::updateWindowVisibility()
 void ApplicationController::updateStatusSummary()
 {
     QString summary;
-    if (m_simulationActive) {
-        summary = QStringLiteral("DỮ LIỆU MÔ PHỎNG");
-    } else if (m_config.sources.isEmpty()) {
+    if (m_config.sources.isEmpty()) {
         summary = QStringLiteral("Chưa cấu hình nguồn dữ liệu");
     } else {
         int online = 0;
@@ -828,8 +919,11 @@ void ApplicationController::recomputeCaptions(const QVector<ChannelState> &state
             return QStringLiteral("Mốc đo: %1")
                 .arg(tt10::formatLocalDisplay(min, QStringLiteral("HH:mm:ss dd/MM/yyyy")));
         }
+        const bool sameDay = tt10::formatLocalDisplay(min, QStringLiteral("yyyyMMdd"))
+                             == tt10::formatLocalDisplay(max, QStringLiteral("yyyyMMdd"));
         return QStringLiteral("Mốc đo không đồng bộ: %1 – %2")
-            .arg(tt10::formatLocalDisplay(min, QStringLiteral("HH:mm:ss")),
+            .arg(tt10::formatLocalDisplay(min, sameDay ? QStringLiteral("HH:mm:ss")
+                                                       : QStringLiteral("HH:mm:ss dd/MM/yyyy")),
                  tt10::formatLocalDisplay(max, QStringLiteral("HH:mm:ss dd/MM/yyyy")));
     };
 

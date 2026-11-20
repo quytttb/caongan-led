@@ -7,6 +7,25 @@ Rectangle {
     property bool isError: false
     property bool isWarning: false
     visible: text.length > 0
+
+    function showInfo(message) {
+        root.isWarning = false
+        root.isError = false
+        root.text = message
+    }
+
+    function showError(message) {
+        root.isWarning = false
+        root.isError = true
+        root.text = message
+    }
+
+    function showResult(errorMessage, successMessage) {
+        if (errorMessage.length > 0)
+            showError(errorMessage)
+        else
+            showInfo(successMessage)
+    }
     implicitHeight: label.implicitHeight + 20
     radius: 6
     color: isError

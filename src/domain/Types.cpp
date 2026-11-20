@@ -35,12 +35,6 @@ QString channelGroupId(ChannelGroup group)
                                           : QStringLiteral("wastewater");
 }
 
-QString channelGroupTitle(ChannelGroup group)
-{
-    return group == ChannelGroup::Exhaust ? QStringLiteral("KHÍ THẢI")
-                                          : QStringLiteral("NƯỚC THẢI");
-}
-
 QString deviceStatusToCode(DeviceStatus status)
 {
     switch (status) {

@@ -6,9 +6,6 @@ import LoggerKit.Theme
 Item {
     id: page
 
-    property string statusText: ""
-    property bool statusIsError: false
-
     function stateColor(key) {
         switch (key) {
         case "measuring":
@@ -77,28 +74,31 @@ Item {
                 text: "Quét lại"
                 onClicked: {
                     app.requestRescan()
-                    page.statusIsError = false
-                    page.statusText = "Đã gửi yêu cầu quét lại."
+                    notice.showInfo("Đã gửi yêu cầu quét lại.")
                 }
             }
             Button {
                 text: "Tải lại cấu hình"
                 onClicked: {
-                    const message = app.reloadConfiguration()
-                    page.statusIsError = message.length > 0
-                    page.statusText = message.length > 0 ? message : "Đã tải lại cấu hình từ đĩa."
+                    notice.showResult(app.reloadConfiguration(), "Đã tải lại cấu hình từ đĩa.")
                 }
             }
             Button {
                 text: "Xóa sự kiện"
-                onClicked: app.clearDiagnostics()
+                enabled: eventList.count > 0
+                onClicked: confirmClearDialog.ask(
+                    "Xác nhận xóa sự kiện",
+                    "Xóa toàn bộ danh sách sự kiện chẩn đoán đang hiển thị trên màn hình?\n(Nhật ký tệp trên đĩa không bị ảnh hưởng.)",
+                    function() {
+                        app.clearDiagnostics()
+                        notice.showInfo("Đã xóa danh sách sự kiện.")
+                    })
             }
         }
 
         InlineNotice {
+            id: notice
             Layout.fillWidth: true
-            text: page.statusText
-            isError: page.statusIsError
         }
 
         RowLayout {
@@ -155,7 +155,8 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: parent.live.message || "Chưa có trạng thái"
+                                text: (parent.live.message || "Chưa có trạng thái")
+                                      + (parent.live.lastFileText ? (" • File gần nhất: " + parent.live.lastFileText) : "")
                                 color: parent.live.available === true ? AppColors.textMuted : AppColors.warning
                                 font.family: "Inter"
                                 font.pixelSize: 13
@@ -262,7 +263,7 @@ Item {
                     Item { Layout.fillWidth: true }
                     Text {
                         text: app.statusSummary
-                        color: app.simulationActive ? AppColors.warning : AppColors.textMuted
+                        color: AppColors.textMuted
                         font.family: "Inter"
                         font.pixelSize: 12
                     }
@@ -321,6 +322,7 @@ Item {
                                 elide: Text.ElideRight
                             }
                             Text {
+                                id: channelStatusLabel
                                 Layout.preferredWidth: 210
                                 text: model.statusText
                                 color: page.stateColor(model.stateKey)
@@ -336,6 +338,7 @@ Item {
                                 font.pixelSize: 11
                             }
                             Text {
+                                id: channelDetailLabel
                                 Layout.fillWidth: true
                                 text: model.detailText
                                 color: AppColors.textFaint
@@ -343,6 +346,23 @@ Item {
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
                             }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            ToolTip.visible: containsMouse && (channelDetailLabel.truncated || channelStatusLabel.truncated)
+                            ToolTip.delay: 400
+                            ToolTip.text: model.detailText
+                            onClicked: detailDialog.show(
+                                "Chi tiết kênh " + model.symbol,
+                                "Thông số: " + model.symbol + " (" + model.unit + ")\n" +
+                                "Giá trị: " + model.valueText + " " + model.unit + "\n" +
+                                "Trạng thái: " + model.statusText + "\n" +
+                                "Mốc đo: " + model.timeText + "\n" +
+                                "Ngưỡng: " + model.thresholdText + "\n" +
+                                "Chi tiết: " + model.detailText)
                         }
                     }
                 }
@@ -409,8 +429,24 @@ Item {
                             Text { Layout.preferredWidth: 76; text: model.severity; color: page.severityColor(model.severity); font.pixelSize: 11; font.family: "Inter"; font.bold: true }
                             Text { Layout.preferredWidth: 95; text: model.sourceId; color: AppColors.textMuted; font.pixelSize: 11; font.family: "Inter"; elide: Text.ElideRight }
                             Text { Layout.preferredWidth: 95; text: model.channelId; color: AppColors.textMuted; font.pixelSize: 11; font.family: "Inter"; elide: Text.ElideRight }
-                            Text { Layout.preferredWidth: 180; text: model.code; color: AppColors.textMuted; font.pixelSize: 11; font.family: "Inter"; elide: Text.ElideRight }
-                            Text { Layout.fillWidth: true; text: model.message; color: AppColors.primaryText; font.pixelSize: 11; font.family: "Inter"; elide: Text.ElideRight }
+                            Text { id: eventCodeLabel; Layout.preferredWidth: 180; text: model.code; color: AppColors.textMuted; font.pixelSize: 11; font.family: "Inter"; elide: Text.ElideRight }
+                            Text { id: eventMessageLabel; Layout.fillWidth: true; text: model.message; color: AppColors.primaryText; font.pixelSize: 11; font.family: "Inter"; elide: Text.ElideRight }
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            ToolTip.visible: containsMouse && (eventMessageLabel.truncated || eventCodeLabel.truncated)
+                            ToolTip.delay: 400
+                            ToolTip.text: model.message
+                            onClicked: detailDialog.show(
+                                "Chi tiết sự kiện",
+                                "Thời gian: " + model.timeText + "\n" +
+                                "Mức: " + model.severity + "\n" +
+                                "Nguồn: " + (model.sourceId || "—") + "\n" +
+                                "Kênh: " + (model.channelId || "—") + "\n" +
+                                "Mã: " + model.code + "\n\n" +
+                                model.message)
                         }
                     }
                 }
@@ -425,5 +461,71 @@ Item {
                 }
             }
         }
+    }
+
+    Dialog {
+        id: detailDialog
+        objectName: "diagnosticDetailDialog"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(680, parent ? parent.width - 48 : 680)
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape
+        title: "Chi tiết"
+        background: Rectangle {
+            color: AppColors.surfaceContainerLow
+            radius: 8
+            border.color: AppColors.elevatedBorder
+        }
+        Overlay.modal: Rectangle { color: "#99000000" }
+
+        function show(dialogTitle, bodyText) {
+            title = dialogTitle
+            detailTextArea.text = bodyText
+            open()
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 10
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 200
+                clip: true
+                TextArea {
+                    id: detailTextArea
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                    color: AppColors.primaryText
+                    font.family: "Inter"
+                    font.pixelSize: 13
+                    background: Rectangle {
+                        color: AppColors.surfaceContainer
+                        radius: 6
+                        border.color: AppColors.elevatedBorder
+                    }
+                }
+            }
+        }
+
+        footer: DialogButtonBox {
+            Button {
+                text: "Sao chép"
+                onClicked: {
+                    detailTextArea.selectAll()
+                    detailTextArea.copy()
+                }
+            }
+            Button {
+                text: "Đóng"
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+            }
+        }
+    }
+
+    ActionDialog {
+        id: confirmClearDialog
+        objectName: "confirmClearDiagnosticsDialog"
     }
 }

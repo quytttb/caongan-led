@@ -13,7 +13,13 @@ ApplicationWindow {
     height: Math.max(minimumHeight, Math.min(920, screen ? screen.desktopAvailableHeight : 920))
     minimumWidth: 1120
     minimumHeight: 760
-    visible: true
+    // C++ chọn màn cấu hình (màn còn lại) rồi mới hiện, tránh nháy cửa sổ
+    // sang màn LED lúc khởi động.
+    visible: false
+    Component.onCompleted: {
+        app.positionOperatorWindow(win)
+        win.showMaximized()
+    }
     color: AppColors.surface
     // Trên Windows, native event filter chỉ bỏ non-client area của cửa sổ
     // này, giữ lại resize/snap của hệ điều hành. Các nền tảng khác dùng Qt.
@@ -30,6 +36,25 @@ ApplicationWindow {
     property int pageIndex: 0
     property bool exitConfirmed: false
 
+    Connections {
+        target: app
+        function onDisplayAssignmentChanged() {
+            if (!win.visible)
+                return
+            const targetName = app.operatorScreenName
+            if (targetName.length === 0)
+                return
+            if (!win.screen || win.screen.name !== targetName) {
+                const wasMaximized = (win.visibility === Window.Maximized)
+                if (wasMaximized)
+                    win.showNormal()
+                app.positionOperatorWindow(win)
+                if (wasMaximized)
+                    win.showMaximized()
+            }
+        }
+    }
+
     onClosing: function(close) {
         if (exitConfirmed) {
             app.quit()
@@ -39,47 +64,14 @@ ApplicationWindow {
         }
     }
 
-    Dialog {
+    ActionDialog {
         id: exitDialog
         objectName: "exitConfirmationDialog"
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(560, parent ? parent.width - 48 : 560)
-        implicitHeight: 220
-        modal: true
-        focus: true
-        closePolicy: Popup.CloseOnEscape
         title: "Xác nhận thoát ứng dụng"
-        background: Rectangle {
-            color: AppColors.surfaceContainerLow
-            radius: 8
-            border.color: AppColors.elevatedBorder
-        }
-        Overlay.modal: Rectangle { color: "#99000000" }
-
-        contentItem: Text {
-            text: "Thoát ứng dụng sẽ dừng hiển thị trên màn hình LED. Bạn có chắc chắn muốn thoát?"
-            color: AppColors.primaryText
-            font.family: "Inter"
-            font.pixelSize: 15
-            wrapMode: Text.WordWrap
-            padding: 4
-        }
-
-        footer: DialogButtonBox {
-            Button {
-                objectName: "cancelExitButton"
-                text: "Hủy"
-                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
-            }
-            Button {
-                objectName: "confirmExitButton"
-                text: "Thoát ứng dụng"
-                highlighted: true
-                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-            }
-        }
-
+        detailText: "Thoát ứng dụng sẽ dừng hiển thị trên màn hình LED. Bạn có chắc chắn muốn thoát?"
+        confirmText: "Thoát ứng dụng"
+        confirmObjectName: "confirmExitButton"
+        cancelObjectName: "cancelExitButton"
         onAccepted: {
             win.exitConfirmed = true
             win.close()
@@ -184,11 +176,11 @@ ApplicationWindow {
                             height: 8
                             radius: 4
                             anchors.verticalCenter: parent.verticalCenter
-                            color: app.simulationActive ? AppColors.warning : AppColors.primaryColor
+                            color: AppColors.primaryColor
                         }
                         Text {
                             text: app.statusSummary
-                            color: app.simulationActive ? AppColors.warning : AppColors.primaryColor
+                            color: AppColors.primaryColor
                             font.family: "Inter"
                             font.pixelSize: 12
                             font.bold: true
@@ -232,6 +224,16 @@ ApplicationWindow {
             Layout.topMargin: app.configError.length > 0 ? 10 : 0
             visible: app.configError.length > 0
             text: app.configError
+            isError: true
+        }
+
+        InlineNotice {
+            Layout.fillWidth: true
+            Layout.leftMargin: 18
+            Layout.rightMargin: 18
+            Layout.topMargin: app.storageWarning.length > 0 ? 10 : 0
+            visible: app.storageWarning.length > 0
+            text: app.storageWarning
             isError: true
         }
 
@@ -397,8 +399,8 @@ ApplicationWindow {
                     Layout.fillWidth: true
                 }
                 Text {
-                    text: app.targetScreenName.length > 0 ? ("LED: " + app.targetScreenName) : "LED: chưa chọn output"
-                    color: app.targetScreenName.length > 0 ? AppColors.textMuted : AppColors.warning
+                    text: app.ledScreenName.length > 0 ? ("LED: " + app.ledScreenName) : "LED: đang tắt"
+                    color: app.ledScreenName.length > 0 ? AppColors.textMuted : AppColors.warning
                     font.family: "Inter"
                     font.pixelSize: 10
                 }

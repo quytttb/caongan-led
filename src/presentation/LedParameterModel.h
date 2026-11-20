@@ -13,21 +13,14 @@ public:
     enum Roles {
         ChannelIdRole = Qt::UserRole + 1,
         SymbolRole,
-        DisplayNameRole,
         UnitRole,
-        GroupRole,
-        GroupTitleRole,
+        RangeTextRole,
         ValueTextRole,
         StatusTextRole,
         StateKeyRole,
-        SeverityRole,
         DetailTextRole,
         TimeTextRole,
         ThresholdTextRole,
-        SourceNameRole,
-        HasReadingRole,
-        AgeTextRole,
-        RangeTextRole,
     };
     Q_ENUM(Roles)
 
@@ -39,10 +32,6 @@ public:
 
     void setConfig(const AppConfig &config);
     void setStates(const QVector<ChannelState> &states);
-    QVector<ChannelState> states() const { return m_states; }
-
-signals:
-    void statesChanged();
 
 private:
     void rebuildPlaceholders();

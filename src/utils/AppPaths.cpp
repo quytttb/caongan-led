@@ -58,11 +58,6 @@ QString configFilePath()
     return configDir() + QStringLiteral("/caongan-led.json");
 }
 
-QString defaultSnapshotPath()
-{
-    return databasePath();
-}
-
 void ensureDirectories()
 {
     QDir().mkpath(dataDir());

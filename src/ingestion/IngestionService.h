@@ -4,7 +4,6 @@
 #include "domain/LatestReadingStore.h"
 #include "storage/SnapshotStore.h"
 
-#include <QElapsedTimer>
 #include <QFileSystemWatcher>
 #include <QHash>
 #include <QObject>
@@ -28,7 +27,6 @@ public:
 public slots:
     void start(const caongan::AppConfig &config, const QString &snapshotPath);
     void reloadConfig(const caongan::AppConfig &config);
-    void setPaused(bool paused);
     void requestRescan();
     void shutdown();
 
@@ -36,8 +34,8 @@ signals:
     void channelsChanged(QVector<caongan::ChannelState> states);
     void diagnosticsBatch(QVector<caongan::DiagnosticEntry> entries);
     void sourceStatusChanged(const QString &sourceId, bool available, const QString &message);
-    void heartbeat(const QDateTime &nowUtc);
-    void stopped();
+    void sourceLastFileChanged(const QString &sourceId, const QDateTime &lastFileUtc);
+    void storageHealthChanged(bool healthy, const QString &message);
 
 private slots:
     void tick();
@@ -64,6 +62,7 @@ private:
     void processCandidate(SourceRuntime &runtime, const FileCandidate &candidate, const QDateTime &nowUtc);
     void updateWatcher(SourceRuntime &runtime, const DirectoryScanResult &scan);
     void setSourceStatus(SourceRuntime &runtime, bool available, const QString &message);
+    void setStorageHealthy(bool healthy, const QString &message = {});
     void addDiagnostic(const QString &severity,
                        const QString &sourceId,
                        const QString &channelId,
@@ -81,7 +80,6 @@ private:
     AppConfig m_config;
     LatestReadingStore m_store;
     std::unique_ptr<SnapshotStore> m_snapshotStore;
-    QString m_snapshotPath;
     QVector<SourceRuntime *> m_runtimes;
     QTimer *m_timer = nullptr;
     QVector<DiagnosticEntry> m_pendingDiagnostics;
@@ -90,9 +88,10 @@ private:
     QHash<QString, QString> m_loggedStates;
     QDateTime m_lastPruneUtc;
     bool m_started = false;
-    bool m_paused = false;
     bool m_rescanRequested = false;
     bool m_storageHealthy = true;
+    bool m_storageHealthInitialised = false;
+    QString m_storageHealthMessage;
     bool m_firstEmit = true;
 };
 

@@ -8,14 +8,18 @@ Dialog {
     id: root
     property string detailText: ""
     property var pendingAction: null
+    property string confirmText: "Xác nhận"
+    property string cancelText: "Hủy"
+    property string confirmObjectName: ""
+    property string cancelObjectName: ""
 
     parent: Overlay.overlay
     anchors.centerIn: parent
-    width: Math.min(640, parent ? parent.width - 48 : 640)
+    width: Math.min(640, parent && parent.width > 96 ? parent.width - 48 : 640)
     modal: true
     focus: true
+    closePolicy: Popup.CloseOnEscape
     title: "Xác nhận thay đổi"
-    standardButtons: Dialog.Ok | Dialog.Cancel
     background: Rectangle {
         color: AppColors.surfaceContainerLow
         radius: 8
@@ -30,15 +34,6 @@ Dialog {
         root.open()
     }
 
-    onOpened: {
-        const confirm = root.standardButton(Dialog.Ok)
-        const cancel = root.standardButton(Dialog.Cancel)
-        if (confirm)
-            confirm.text = "Xác nhận"
-        if (cancel)
-            cancel.text = "Hủy"
-    }
-
     onAccepted: {
         const action = root.pendingAction
         root.pendingAction = null
@@ -47,12 +42,32 @@ Dialog {
     }
     onRejected: root.pendingAction = null
 
-    contentItem: Text {
-        text: root.detailText
-        color: AppColors.primaryText
-        font.family: "Inter"
-        font.pixelSize: 15
-        wrapMode: Text.WordWrap
-        padding: 4
+    contentItem: Item {
+        implicitHeight: messageText.implicitHeight
+
+        Text {
+            id: messageText
+            width: root.availableWidth
+            text: root.detailText
+            color: AppColors.primaryText
+            font.family: "Inter"
+            font.pixelSize: 15
+            wrapMode: Text.WordWrap
+            padding: 4
+        }
+    }
+
+    footer: DialogButtonBox {
+        Button {
+            objectName: root.cancelObjectName
+            text: root.cancelText
+            DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+        }
+        Button {
+            objectName: root.confirmObjectName
+            text: root.confirmText
+            highlighted: true
+            DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+        }
     }
 }

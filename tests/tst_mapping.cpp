@@ -55,6 +55,7 @@ private slots:
     void waterSourceExcludesNh4N();
     void noFuzzyMatchBetweenNitrogenSpecies();
     void unmappedSymbolsReportedOnce();
+    void waterSourceSilentlyIgnoresKnownNonLedChannels();
 };
 
 void TestMapping::mapsByExplicitAliasOnly()
@@ -71,8 +72,7 @@ void TestMapping::mapsByExplicitAliasOnly()
 
     const SourceConfig source = sourceFor(QStringLiteral("khi-thai"), QStringLiteral("Khí thải"),
                                           QStringLiteral("KHITO1"));
-    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content,
-                                                source, {});
+    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content, source);
     QVERIFY2(parsed.accepted, qPrintable(parsed.errorMessage));
 
     const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
@@ -98,8 +98,7 @@ void TestMapping::unitAliasesAndMismatch()
 
     const SourceConfig source = sourceFor(QStringLiteral("khi-thai"), QStringLiteral("Khí thải"),
                                           QStringLiteral("KHITO1"));
-    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content,
-                                                source, {});
+    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content, source);
     QVERIFY(parsed.accepted);
 
     const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
@@ -125,8 +124,7 @@ void TestMapping::missingValueStillMaps()
     const QByteArray content = QByteArrayLiteral("O2\t---\t%\t20260101120000\t00\n");
     const SourceConfig source = sourceFor(QStringLiteral("khi-thai"), QStringLiteral("Khí thải"),
                                           QStringLiteral("KHITO1"));
-    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content,
-                                                source, {});
+    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content, source);
     QVERIFY(parsed.accepted);
 
     const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
@@ -146,7 +144,7 @@ void TestMapping::maintenanceStatusMaps()
                                           QStringLiteral("KHITO1"));
     const ParseResult parsed = parseTt10Content(
         fileNameFor(QStringLiteral("KHITO1")),
-        QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t04\n"), source, {});
+        QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t04\n"), source);
     QVERIFY(parsed.accepted);
     const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
                                                   QStringLiteral("/tmp/a.txt"), QStringLiteral("hash"), {});
@@ -163,8 +161,7 @@ void TestMapping::waterSourceExcludesNh4N()
 
     const SourceConfig source = sourceFor(QStringLiteral("nuoc-thai"), QStringLiteral("Nước thải"),
                                           QStringLiteral("NUONT1"));
-    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("NUONT1")), content,
-                                                source, {});
+    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("NUONT1")), content, source);
     QVERIFY(parsed.accepted);
 
     const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
@@ -192,8 +189,7 @@ void TestMapping::noFuzzyMatchBetweenNitrogenSpecies()
         "NOx\t30\tmg/Nm³\t20260101120000\t00\n");
     const SourceConfig source = sourceFor(QStringLiteral("khi-thai"), QStringLiteral("Khí thải"),
                                           QStringLiteral("KHITO1"));
-    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content,
-                                                source, {});
+    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content, source);
     QVERIFY(parsed.accepted);
 
     const MapResult mapped = ParameterMapper::map(parsed, source, config,
@@ -213,8 +209,7 @@ void TestMapping::unmappedSymbolsReportedOnce()
         "O2\t12.3\t%\t20260101120000\t00\n");
     const SourceConfig source = sourceFor(QStringLiteral("khi-thai"), QStringLiteral("Khí thải"),
                                           QStringLiteral("KHITO1"));
-    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content,
-                                                source, {});
+    const ParseResult parsed = parseTt10Content(fileNameFor(QStringLiteral("KHITO1")), content, source);
     QVERIFY(parsed.accepted);
 
     const MapResult mapped = ParameterMapper::map(parsed, source, defaultAppConfig(),
@@ -225,6 +220,46 @@ void TestMapping::unmappedSymbolsReportedOnce()
     for (const DiagnosticEntry &entry : mapped.diagnostics) {
         if (entry.code == QLatin1String("unmapped_symbol"))
             ++unmappedCount;
+    }
+    QCOMPARE(unmappedCount, 1);
+}
+
+void TestMapping::waterSourceSilentlyIgnoresKnownNonLedChannels()
+{
+    const AppConfig config = defaultAppConfig();
+    const SourceConfig *water = config.sourceById(QStringLiteral("nuoc-thai"));
+    QVERIFY(water);
+
+    const QByteArray cleanContent = QByteArrayLiteral(
+        "TSS\t11.34\tmg/L\t20260101120000\t00\n"
+        "COD\t0.00\tmg/L\t20260101120000\t00\n"
+        "NH4+\t0.37\tmg/L\t20260101120000\t00\n"
+        "Temp\t23.37\toC\t20260101120000\t00\n"
+        "pH\t7.70\t-\t20260101120000\t00\n"
+        "Flow out 1\t0.30\tm3/h\t20260101120000\t00\n"
+        "Flow in 1\t0.00\tm3/h\t20260101120000\t00\n"
+        "Flow in 2\t0.00\tm3/h\t20260101120000\t00\n");
+    const ParseResult cleanParsed = parseTt10Content(
+        fileNameFor(QStringLiteral("NUONT1")), cleanContent, *water);
+    QVERIFY(cleanParsed.accepted);
+    const MapResult cleanMapped = ParameterMapper::map(
+        cleanParsed, *water, config, QStringLiteral("/tmp/w.txt"), QStringLiteral("h1"), {});
+    QCOMPARE(cleanMapped.readings.size(), 4);
+    QVERIFY(cleanMapped.diagnostics.isEmpty());
+
+    const QByteArray withExtraUnknown = cleanContent + QByteArrayLiteral("NO2\t1.0\tmg/L\t20260101120000\t00\n");
+    const ParseResult extraParsed = parseTt10Content(
+        fileNameFor(QStringLiteral("NUONT1")), withExtraUnknown, *water);
+    QVERIFY(extraParsed.accepted);
+    const MapResult extraMapped = ParameterMapper::map(
+        extraParsed, *water, config, QStringLiteral("/tmp/w2.txt"), QStringLiteral("h2"), {});
+    QCOMPARE(extraMapped.readings.size(), 4);
+    int unmappedCount = 0;
+    for (const DiagnosticEntry &entry : extraMapped.diagnostics) {
+        if (entry.code == QLatin1String("unmapped_symbol")) {
+            ++unmappedCount;
+            QVERIFY(entry.message.contains(QStringLiteral("NO2")));
+        }
     }
     QCOMPARE(unmappedCount, 1);
 }

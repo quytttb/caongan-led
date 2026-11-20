@@ -84,6 +84,9 @@ struct BrandingConfig {
 };
 
 struct DisplayConfig {
+    // Tự chọn màn hình ngoài (mọi màn không phải màn chính) cho LED khi khởi
+    // động. targetScreenName chỉ dùng khi tắt tự động.
+    bool autoDetectExternal = true;
     QString targetScreenName;
     bool fullScreen = true;
     int designWidth = 1600;
@@ -103,6 +106,7 @@ struct SourceConfig {
     QString name;
     QString folder;
     QString stationCode;
+    QStringList ignoredSymbols;
     bool allowLegacyPrefix = true;
     bool groupedFiveColumn = false;
     bool recursive = true;
@@ -191,7 +195,6 @@ struct ChannelState {
     QString stateKey;
     QString severity;
     QString detailText;
-    QString sourceName;
     int ageSeconds = 0;
 };
 
@@ -210,7 +213,6 @@ struct ConfigIssue {
 };
 
 QString channelGroupId(ChannelGroup group);
-QString channelGroupTitle(ChannelGroup group);
 QString deviceStatusToCode(DeviceStatus status);
 DeviceStatus deviceStatusFromCode(const QString &code);
 

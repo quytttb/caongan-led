@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Window
 import LoggerKit.Theme
 import CaonganLed.App
 
@@ -19,6 +18,5 @@ QtObject {
 
     property OperatorWindow operatorWindow: OperatorWindow {
         id: operatorWindow
-        visible: true
     }
 }

@@ -14,13 +14,11 @@ Window {
     height: 960
 
     property bool targetReady: false
-    property string positionedName: ""
 
     function positionTarget() {
         // Ẩn trước khi chuyển màn; nếu output mất kết nối, không đưa LED
         // sang màn vận hành. C++ dùng QGuiApplication::screens().
         targetReady = false
-        positionedName = app.targetScreenName
         targetReady = app.positionLedWindow(win)
     }
 
@@ -28,11 +26,7 @@ Window {
 
     Connections {
         target: app
-        function onConfigChanged() {
-            if (win.positionedName !== app.targetScreenName)
-                win.positionTarget()
-        }
-        function onScreensChanged() { win.positionTarget() }
+        function onDisplayAssignmentChanged() { win.positionTarget() }
     }
 
     Item {

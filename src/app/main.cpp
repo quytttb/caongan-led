@@ -12,7 +12,6 @@
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
-#include <QDir>
 #include <QFileInfo>
 #include <QFont>
 #include <QFontDatabase>
@@ -20,10 +19,8 @@
 #include <QLockFile>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QQuickStyle>
-#include <QQuickWindow>
 #include <QStringList>
-#include <QTimer>
+#include <QWindow>
 
 #include <cstdio>
 
@@ -95,37 +92,8 @@ int main(int argc, char *argv[])
         QStringList{QStringLiteral("c"), QStringLiteral("config")},
         QStringLiteral("Đường dẫn file cấu hình JSON (mặc định dưới AppLocalData)."),
         QStringLiteral("path"));
-    QCommandLineOption previewOption(
-        QStringList{QStringLiteral("preview")},
-        QStringLiteral("Hiển thị LED toàn màn hình trên màn chính để kiểm tra (không cần màn LED thật)."));
-    QCommandLineOption simulateOption(
-        QStringList{QStringLiteral("simulate")},
-        QStringLiteral("Dữ liệu mô phỏng, chỉ dùng cùng --preview; không đọc nguồn thật."));
-    QCommandLineOption scenarioOption(
-        QStringList{QStringLiteral("scenario")},
-        QStringLiteral("Tên cảnh mô phỏng dùng với --simulate."), QStringLiteral("name"));
-    QCommandLineOption verifyWindowsOption(
-        QStringList{QStringLiteral("verify-preview-windows")},
-        QStringLiteral("Kiểm tra hai cửa sổ preview thực sự hiển thị, rồi thoát (dành cho test)."));
     parser.addOption(configOption);
-    parser.addOption(previewOption);
-    parser.addOption(simulateOption);
-    parser.addOption(scenarioOption);
-    parser.addOption(verifyWindowsOption);
     parser.process(app);
-
-    if (parser.isSet(verifyWindowsOption) && !parser.isSet(previewOption)) {
-        std::fprintf(stderr, "--verify-preview-windows yêu cầu --preview.\n");
-        return 2;
-    }
-    if (parser.isSet(simulateOption) && !parser.isSet(previewOption)) {
-        std::fprintf(stderr, "--simulate yêu cầu --preview.\n");
-        return 2;
-    }
-    if (parser.isSet(scenarioOption) && !parser.isSet(simulateOption)) {
-        std::fprintf(stderr, "--scenario yêu cầu --simulate.\n");
-        return 2;
-    }
 
     caongan::AppPaths::ensureDirectories();
     caongan::setupLogging(caongan::AppPaths::logDir());
@@ -140,7 +108,7 @@ int main(int argc, char *argv[])
     if (!instanceLock.tryLock(250)) {
         qCritical() << "Đã có một instance Cao Ngạn LED đang chạy (hoặc lock còn sót):"
                     << instanceLock.fileName();
-        std::fprintf(stderr, "Cao Ngạn LED đang chạy ở một tiến trình khác.\n");
+        std::fprintf(stderr, "Cao Ngan LED dang chay o mot tien trinh khac.\n");
         return 2;
     }
 
@@ -167,9 +135,7 @@ int main(int argc, char *argv[])
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      &controller, &caongan::ApplicationController::shutdown);
 
-    controller.initialize(absoluteConfigPath(parser.value(configOption)),
-                          parser.isSet(previewOption), parser.isSet(simulateOption),
-                          parser.value(scenarioOption));
+    controller.initialize(absoluteConfigPath(parser.value(configOption)));
 
     engine.loadFromModule(QStringLiteral("CaonganLed.App"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {
@@ -185,39 +151,6 @@ int main(int argc, char *argv[])
         }
     }
 #endif
-
-    if (parser.isSet(verifyWindowsOption)) {
-        QTimer::singleShot(500, &app, [&]() {
-            bool ledVisible = false;
-            bool ledFullScreen = false;
-            bool ledFrameless = false;
-            bool operatorVisible = false;
-            bool operatorFrameless = true;
-            for (const QWindow *window : QGuiApplication::allWindows()) {
-                if (window->objectName() == QLatin1String("ledWindow")) {
-                    ledVisible = window->isVisible();
-                    ledFullScreen = window->visibility() == QWindow::FullScreen;
-                    ledFrameless = window->flags().testFlag(Qt::FramelessWindowHint);
-                } else if (window->objectName() == QLatin1String("operatorWindow")) {
-                    operatorVisible = window->isVisible();
-                }
-            }
-#ifdef Q_OS_WIN
-            if (QGuiApplication::platformName() == QLatin1String("windows"))
-                operatorFrameless = framelessHelper.hasNoTitleBar();
-#endif
-            if (!ledVisible || !ledFullScreen || !ledFrameless || !operatorVisible || !operatorFrameless) {
-                qCritical() << "Kiểm tra preview thất bại: LED hiển thị =" << ledVisible
-                            << ", toàn màn hình =" << ledFullScreen << ", không viền =" << ledFrameless
-                            << ", vận hành hiển thị =" << operatorVisible
-                            << ", không có title bar native =" << operatorFrameless;
-                QCoreApplication::exit(3);
-                return;
-            }
-            qInfo() << "PREVIEW_WINDOWS_OK";
-            QCoreApplication::exit(0);
-        });
-    }
 
     qInfo() << "Sẵn sàng; config =" << controller.configPath();
     const int exitCode = app.exec();

@@ -64,6 +64,7 @@ private slots:
     void limitsAreEnforced();
     void fileNameContract();
     void stationMismatchRejected();
+    void invalidTimestampSkipsOnlyOffendingLine();
 };
 
 void TestTt10::timestampUtc7()
@@ -155,8 +156,7 @@ void TestTt10::parsesBomCrlfAndUtf8()
     content.append("\xEF\xBB\xBF", 3);
     content.append(exhaustContent());
 
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(),
-                                                QDateTime::fromString(QStringLiteral("2026-01-01T05:10:00Z"), Qt::ISODate));
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY2(result.accepted, qPrintable(result.errorMessage));
     QCOMPARE(result.records.size(), 2);
     QCOMPARE(result.records.at(0).symbol, QStringLiteral("O2"));
@@ -176,8 +176,7 @@ void TestTt10::readsSampleFixture()
 
     SourceConfig source = flueSource();
     source.allowLegacyPrefix = true;
-    const ParseResult result = parseTt10Content(QFileInfo(path).fileName(), file.readAll(), source,
-                                                QDateTime::fromString(QStringLiteral("2026-01-01T05:10:00Z"), Qt::ISODate));
+    const ParseResult result = parseTt10Content(QFileInfo(path).fileName(), file.readAll(), source);
     QVERIFY2(result.accepted, qPrintable(result.errorMessage));
     QCOMPARE(result.records.size(), 8);
     QCOMPARE(result.records.at(0).symbol, QStringLiteral("O2"));
@@ -187,7 +186,7 @@ void TestTt10::readsSampleFixture()
 void TestTt10::fourFieldsDoesNotMeanMeasuring()
 {
     const QByteArray content = QByteArrayLiteral("O2\t12.3\t%\t20260101120000\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(result.accepted);
     QCOMPARE(result.records.size(), 1);
     const Tt10Record &record = result.records.constFirst();
@@ -200,7 +199,7 @@ void TestTt10::fourFieldsDoesNotMeanMeasuring()
 void TestTt10::unknownStatusIsNotMeasuring()
 {
     const QByteArray content = QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t03\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(result.accepted);
     const Tt10Record &record = result.records.constFirst();
     QCOMPARE(record.deviceStatus, DeviceStatus::Unknown);
@@ -212,7 +211,7 @@ void TestTt10::unknownStatusIsNotMeasuring()
 void TestTt10::maintenanceStatusIsExtension()
 {
     const QByteArray content = QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t04\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(result.accepted);
     QCOMPARE(result.records.size(), 1);
     QCOMPARE(result.records.constFirst().deviceStatus, DeviceStatus::Maintenance);
@@ -225,7 +224,7 @@ void TestTt10::maintenanceStatusIsExtension()
 void TestTt10::placeholderIsMissingNotZero()
 {
     const QByteArray content = QByteArrayLiteral("O2\t---\t%\t20260101120000\t00\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(result.accepted);
     const Tt10Record &record = result.records.constFirst();
     QCOMPARE(record.validity, Validity::Missing);
@@ -238,7 +237,7 @@ void TestTt10::invalidNumberKeepsRecordInvalid()
     for (const QByteArray &raw : {QByteArrayLiteral("1,5"), QByteArrayLiteral("NaN"),
                                   QByteArrayLiteral("1e3"), QByteArrayLiteral("")}) {
         const QByteArray content = "O2\t" + raw + "\t%\t20260101120000\t00\n";
-        const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+        const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
         QVERIFY(result.accepted);
         const Tt10Record &record = result.records.constFirst();
         QVERIFY2(!record.value.has_value(), raw.constData());
@@ -252,7 +251,7 @@ void TestTt10::invalidNumberKeepsRecordInvalid()
 void TestTt10::zeroIsValid()
 {
     const QByteArray content = QByteArrayLiteral("CO\t0\tmg/Nm³\t20260101120000\t00\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(result.accepted);
     const Tt10Record &record = result.records.constFirst();
     QCOMPARE(record.validity, Validity::Valid);
@@ -263,7 +262,7 @@ void TestTt10::zeroIsValid()
 void TestTt10::fileNameTimestampMismatchFlag()
 {
     const QByteArray content = QByteArrayLiteral("O2\t12.3\t%\t20260101120001\t00\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(result.accepted);
     QVERIFY(result.fileNameTimestampMismatch);
 }
@@ -273,7 +272,7 @@ void TestTt10::structuralErrorRejectsWholeFile()
     const QByteArray content = QByteArrayLiteral(
         "O2\t12.3\t%\t20260101120000\t00\n"
         "CO\t45.6\n");
-    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource(), {});
+    const ParseResult result = parseTt10Content(standardFileName(), content, flueSource());
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("structure_error"));
     QVERIFY(result.records.isEmpty());
@@ -285,13 +284,13 @@ void TestTt10::groupedFiveColumnOnlyWhenEnabled()
         "O2\t12.3\t%\t20260101120000\t00\tCO\t45.6\tmg/Nm³\t20260101120000\t00\n");
 
     SourceConfig strict = flueSource();
-    ParseResult result = parseTt10Content(standardFileName(), content, strict, {});
+    ParseResult result = parseTt10Content(standardFileName(), content, strict);
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("structure_error"));
 
     SourceConfig grouped = flueSource();
     grouped.groupedFiveColumn = true;
-    result = parseTt10Content(standardFileName(), content, grouped, {});
+    result = parseTt10Content(standardFileName(), content, grouped);
     QVERIFY2(result.accepted, qPrintable(result.errorMessage));
     QCOMPARE(result.records.size(), 2);
     QCOMPARE(result.records.at(1).symbol, QStringLiteral("CO"));
@@ -300,7 +299,7 @@ void TestTt10::groupedFiveColumnOnlyWhenEnabled()
 void TestTt10::emptyFileRejected()
 {
     const ParseResult result = parseTt10Content(standardFileName(), QByteArrayLiteral("\n\n"),
-                                                flueSource(), {});
+                                                flueSource());
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("empty_file"));
 }
@@ -309,20 +308,20 @@ void TestTt10::limitsAreEnforced()
 {
     ParseLimits limits;
     limits.maxFileBytes = 16;
-    ParseResult result = parseTt10Content(standardFileName(), exhaustContent(), flueSource(), {}, limits);
+    ParseResult result = parseTt10Content(standardFileName(), exhaustContent(), flueSource(), limits);
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("file_too_large"));
 
     limits = {};
     limits.maxLines = 1;
-    result = parseTt10Content(standardFileName(), exhaustContent(), flueSource(), {}, limits);
+    result = parseTt10Content(standardFileName(), exhaustContent(), flueSource(), limits);
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("too_many_lines"));
 
     limits = {};
     limits.maxFieldChars = 3;
     const QByteArray longField = QByteArrayLiteral("O2\t123456\t%\t20260101120000\t00\n");
-    result = parseTt10Content(standardFileName(), longField, flueSource(), {}, limits);
+    result = parseTt10Content(standardFileName(), longField, flueSource(), limits);
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("structure_error"));
 }
@@ -365,11 +364,32 @@ void TestTt10::stationMismatchRejected()
     SourceConfig source = flueSource();
     const ParseResult result = parseTt10Content(
         QStringLiteral("TNg_NDCN_KHITO2_20260101120000.txt"),
-        QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t00\n"), source, {});
+        QByteArrayLiteral("O2\t12.3\t%\t20260101120000\t00\n"), source);
     QVERIFY(!result.accepted);
     QCOMPARE(result.errorCode, QStringLiteral("bad_file_name"));
     QCOMPARE(result.stationCode, QStringLiteral("KHITO2"));
     QVERIFY(!result.stationMatches);
+}
+
+void TestTt10::invalidTimestampSkipsOnlyOffendingLine()
+{
+    const SourceConfig source = flueSource();
+    const QByteArray partialBad = QByteArrayLiteral(
+        "CO\t45.6\tmg/Nm³\t20260101120000\t00\n"
+        "O2\t12.3\t%\t2026010\t00\n");
+    const ParseResult partial = parseTt10Content(standardFileName(), partialBad, source);
+    QVERIFY2(partial.accepted, qPrintable(partial.errorMessage));
+    QCOMPARE(partial.records.size(), 1);
+    QCOMPARE(partial.records.constFirst().symbol, QStringLiteral("CO"));
+    QVERIFY(!partial.issues.isEmpty());
+    QCOMPARE(partial.issues.constFirst().code, QStringLiteral("bad_timestamp"));
+    QCOMPARE(partial.issues.constFirst().line, 2);
+
+    const QByteArray allBad = QByteArrayLiteral("O2\t12.3\t%\t2026010\t00\n");
+    const ParseResult rejected = parseTt10Content(standardFileName(), allBad, source);
+    QVERIFY(!rejected.accepted);
+    QCOMPARE(rejected.errorCode, QStringLiteral("bad_timestamp"));
+    QVERIFY(rejected.records.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TestTt10)

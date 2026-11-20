@@ -12,7 +12,6 @@ QString configDir();
 QString logDir();
 QString databasePath();
 QString configFilePath();
-QString defaultSnapshotPath();
 
 void ensureDirectories();
 

@@ -46,6 +46,8 @@ private slots:
     void conflictSurvivesRestart();
     void maintenanceSurvivesRestart();
     void thresholdReloadReevaluatesCurrentReading();
+    void sharedRootFiltersCrossStationWithoutNoise();
+    void futureTimestampRetriesAndRecoversWithoutPoisoningCheckpoint();
 };
 
 void TestIngestion::batchesEventuallyReachEveryFile()
@@ -265,6 +267,124 @@ void TestIngestion::thresholdReloadReevaluatesCurrentReading()
     QCOMPARE(coState().display, DisplayState::ExceedsLimit);
     QCOMPARE(coState().reading.rawValue, QStringLiteral("46"));
     service.shutdown();
+}
+
+void TestIngestion::sharedRootFiltersCrossStationWithoutNoise()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/shared");
+    QVERIFY(QDir().mkpath(root + QStringLiteral("/2026/11/18")));
+    QVERIFY(QDir().mkpath(root + QStringLiteral("/20261118")));
+
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    const QString ts = tt10::formatTimestamp(now.addSecs(-20));
+    const QString gasRel = QStringLiteral("2026/11/18/TNg_NDCN_KHITO1_%1.txt").arg(ts);
+    const QString waterRel = QStringLiteral("20261118/TNg_NDCN_NUONT1_%1.txt").arg(ts);
+
+    const QByteArray gasContent = QStringLiteral(
+        "SO2\t10.0\tmg/Nm3\t%1\t00\n"
+        "NOx\t20.0\tmg/Nm3\t%1\t00\n"
+        "PM\t30.0\tmg/Nm3\t%1\t00\n"
+        "O2\t5.6\t%V\t%1\t00\n"
+        "Temp\t135.0\toC\t%1\t00\n"
+        "Flow\t853200.0\tm3/h\t%1\t00\n"
+        "P\t92.00\tkPa\t%1\t00\n"
+        "CO\t15.0\tmg/Nm3\t%1\t00\n").arg(ts).toUtf8();
+    const QByteArray waterContent = QStringLiteral(
+        "TSS\t11.34\tmg/L\t%1\t00\n"
+        "COD\t12.50\tmg/L\t%1\t00\n"
+        "NH4+\t0.37\tmg/L\t%1\t00\n"
+        "Temp\t23.37\toC\t%1\t00\n"
+        "pH\t7.70\t-\t%1\t00\n"
+        "Flow out 1\t0.30\tm3/h\t%1\t00\n"
+        "Flow in 1\t0.00\tm3/h\t%1\t00\n"
+        "Flow in 2\t0.00\tm3/h\t%1\t00\n").arg(ts).toUtf8();
+
+    QVERIFY(writeInput(root + QLatin1Char('/') + gasRel, gasContent, now));
+    QVERIFY(writeInput(root + QLatin1Char('/') + waterRel, waterContent, now));
+
+    AppConfig config = defaultAppConfig();
+    config.sources[0].folder = root;
+    config.sources[1].folder = root;
+    const QString db = temp.filePath(QStringLiteral("snapshot.db"));
+
+    IngestionService service;
+    QSignalSpy diagSpy(&service, &IngestionService::diagnosticsBatch);
+    service.start(config, db);
+    QTest::qWait(1300);
+    scanNow(service);
+    service.shutdown();
+
+    for (const QVariantList &args : diagSpy) {
+        const auto batch = qvariant_cast<QVector<DiagnosticEntry>>(args.at(0));
+        for (const DiagnosticEntry &entry : batch) {
+            QVERIFY2(entry.code != QLatin1String("other_station"), qPrintable(entry.message));
+            QVERIFY2(entry.code != QLatin1String("unmapped_symbol"), qPrintable(entry.message));
+        }
+    }
+
+    SnapshotStore store(db);
+    QVERIFY(store.open());
+    QVector<Reading> readings;
+    QVERIFY(store.loadReadings(&readings));
+    QCOMPARE(readings.size(), 12);
+
+    const QString cleanRoot = QDir::cleanPath(root);
+    CheckpointRecord record;
+    QVERIFY(store.checkpointFor(QStringLiteral("khi-thai|%1|%2").arg(cleanRoot, gasRel), &record));
+    QVERIFY(store.checkpointFor(QStringLiteral("nuoc-thai|%1|%2").arg(cleanRoot, waterRel), &record));
+    QVERIFY(!store.checkpointFor(QStringLiteral("nuoc-thai|%1|%2").arg(cleanRoot, gasRel), &record));
+    QVERIFY(!store.checkpointFor(QStringLiteral("khi-thai|%1|%2").arg(cleanRoot, waterRel), &record));
+}
+
+void TestIngestion::futureTimestampRetriesAndRecoversWithoutPoisoningCheckpoint()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString inputDir = temp.filePath(QStringLiteral("input"));
+    QVERIFY(QDir().mkpath(inputDir));
+
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    const QString futureTs = tt10::formatTimestamp(now.addSecs(124));
+    const QString rel = QStringLiteral("TNg_NDCN_KHITO1_%1.txt").arg(futureTs);
+    const QByteArray content = QStringLiteral("CO\t55\tmg/Nm3\t%1\t00\n").arg(futureTs).toUtf8();
+    QVERIFY(writeInput(inputDir + QLatin1Char('/') + rel, content, now));
+
+    AppConfig config = defaultAppConfig();
+    config.sources[0].folder = inputDir;
+    config.sources[0].futureToleranceSeconds = 120;
+    const QString db = temp.filePath(QStringLiteral("snapshot.db"));
+
+    IngestionService service;
+    service.start(config, db);
+    QTest::qWait(1300);
+    scanNow(service);
+
+    {
+        SnapshotStore store(db);
+        QVERIFY(store.open());
+        QVector<Reading> readings;
+        QVERIFY(store.loadReadings(&readings));
+        QVERIFY(!containsChannel(readings, QStringLiteral("co")));
+        CheckpointRecord cp;
+        const QString key = QStringLiteral("khi-thai|%1|%2").arg(QDir::cleanPath(inputDir), rel);
+        QVERIFY(!store.checkpointFor(key, &cp));
+    }
+
+    QTest::qWait(3200);
+    scanNow(service);
+    service.shutdown();
+
+    SnapshotStore store(db);
+    QVERIFY(store.open());
+    QVector<Reading> readings;
+    QVERIFY(store.loadReadings(&readings));
+    QVERIFY(containsChannel(readings, QStringLiteral("co")));
+    CheckpointRecord cp;
+    const QString key = QStringLiteral("khi-thai|%1|%2").arg(QDir::cleanPath(inputDir), rel);
+    QVERIFY(store.checkpointFor(key, &cp));
+    QCOMPARE(cp.outcome, QStringLiteral("ok"));
 }
 
 QTEST_GUILESS_MAIN(TestIngestion)

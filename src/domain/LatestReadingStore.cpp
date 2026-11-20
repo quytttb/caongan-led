@@ -5,7 +5,6 @@
 #include "ThresholdEvaluator.h"
 
 #include <QDir>
-#include <algorithm>
 
 namespace caongan {
 
@@ -144,32 +143,14 @@ QVector<ChannelState> LatestReadingStore::evaluate(const QDateTime &nowUtc) cons
     states.reserve(m_config.channels.size());
 
     for (const ChannelConfig &channel : orderChannels(m_config.channels)) {
-        ChannelState state;
-        state.config = channel;
-        if (const SourceConfig *source = m_config.sourceById(channel.sourceId))
-            state.sourceName = source->name;
-
         const auto it = m_latest.constFind(channel.id);
         if (it == m_latest.constEnd()) {
-            state.hasReading = false;
-            state.validity = Validity::Missing;
-            state.freshness = Freshness::NoReading;
-            state.threshold = channel.threshold.configured()
-                ? ThresholdResult::NotEvaluated
-                : ThresholdResult::NotConfigured;
-            const ChannelEvaluation display = evaluateDisplay(
-                channel, nullptr, Validity::Missing, Freshness::NoReading,
-                state.threshold, false, nowUtc);
-            state.display = display.display;
-            state.valueText = display.valueText;
-            state.statusText = display.statusText;
-            state.stateKey = display.stateKey;
-            state.severity = display.severity;
-            state.detailText = display.detailText;
-            states.append(state);
+            states.append(makePlaceholderChannelState(channel, nowUtc));
             continue;
         }
 
+        ChannelState state;
+        state.config = channel;
         const Reading &reading = it.value();
         state.hasReading = true;
         state.reading = reading;
@@ -193,28 +174,12 @@ QVector<ChannelState> LatestReadingStore::evaluate(const QDateTime &nowUtc) cons
         const ChannelEvaluation display = evaluateDisplay(
             channel, &reading, validity, state.freshness, state.threshold,
             reading.conflict, nowUtc);
-        state.display = display.display;
-        state.valueText = display.valueText;
-        state.statusText = display.statusText;
-        state.stateKey = display.stateKey;
-        state.severity = display.severity;
-        state.detailText = display.detailText;
+        applyDisplayEvaluation(state, display);
 
         states.append(state);
     }
 
     return states;
-}
-
-QVector<Reading> LatestReadingStore::readings() const
-{
-    QVector<Reading> result;
-    for (const ChannelConfig &channel : orderChannels(m_config.channels)) {
-        const auto it = m_latest.constFind(channel.id);
-        if (it != m_latest.constEnd())
-            result.append(it.value());
-    }
-    return result;
 }
 
 bool LatestReadingStore::hasReading(const QString &channelId) const

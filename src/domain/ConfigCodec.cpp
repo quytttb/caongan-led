@@ -46,6 +46,14 @@ QStringList readStringList(const QJsonObject &obj, const char *key)
     return result;
 }
 
+QHash<QString, ChannelConfig> defaultChannelMap()
+{
+    QHash<QString, ChannelConfig> map;
+    for (const ChannelConfig &standard : defaultChannels())
+        map.insert(standard.id, standard);
+    return map;
+}
+
 } // namespace
 
 QJsonObject configToJson(const AppConfig &config)
@@ -60,6 +68,7 @@ QJsonObject configToJson(const AppConfig &config)
     root.insert(QStringLiteral("branding"), branding);
 
     QJsonObject display;
+    display.insert(QStringLiteral("autoDetectExternal"), config.display.autoDetectExternal);
     display.insert(QStringLiteral("targetScreenName"), config.display.targetScreenName);
     display.insert(QStringLiteral("fullScreen"), config.display.fullScreen);
     display.insert(QStringLiteral("designWidth"), config.display.designWidth);
@@ -142,6 +151,9 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
     }
     const QJsonObject display = object.value(QStringLiteral("display")).toObject();
     parsed.display.targetScreenName = readString(display, "targetScreenName");
+    // Cấu hình cũ chưa có autoDetectExternal được bật tự nhận màn ngoài; tên
+    // màn cũ vẫn được giữ và chỉ dùng khi người vận hành tắt tự động.
+    parsed.display.autoDetectExternal = readBool(display, "autoDetectExternal", true);
     parsed.display.fullScreen = readBool(display, "fullScreen", true);
     parsed.display.designWidth = readInt(display, "designWidth", 1600);
     parsed.display.designHeight = readInt(display, "designHeight", 960);
@@ -156,9 +168,7 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
     }
 
     // Dải đo vẫn cố định. Ngưỡng V1 lấy theo danh mục hiện tại; V2 đọc từ file.
-    QHash<QString, ChannelConfig> fixed;
-    for (const ChannelConfig &standard : defaultChannels())
-        fixed.insert(standard.id, standard);
+    const QHash<QString, ChannelConfig> fixed = defaultChannelMap();
 
     const QJsonObject storage = object.value(QStringLiteral("storage")).toObject();
     parsed.storage.checkpointRetentionDays = readInt(storage, "checkpointRetentionDays", 30);
@@ -166,6 +176,10 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
     parsed.storage.logRetentionDays = readInt(storage, "logRetentionDays", 14);
     parsed.storage.logMaxFileBytes = readInt64(storage, "logMaxFileBytes", 4 * 1024 * 1024);
     parsed.storage.logMaxTotalBytes = readInt64(storage, "logMaxTotalBytes", 64 * 1024 * 1024);
+
+    QHash<QString, SourceConfig> fixedSources;
+    for (const SourceConfig &standard : defaultSources())
+        fixedSources.insert(standard.id, standard);
 
     for (const QJsonValue &value : object.value(QStringLiteral("sources")).toArray()) {
         if (!value.isObject()) {
@@ -178,6 +192,13 @@ bool configFromJson(const QJsonObject &object, AppConfig &config, QStringList *e
         source.name = readString(obj, "name");
         source.folder = readString(obj, "folder");
         source.stationCode = readString(obj, "stationCode");
+        const auto standardSource = fixedSources.constFind(source.id);
+        if (standardSource != fixedSources.cend())
+            source.ignoredSymbols = standardSource->ignoredSymbols;
+        for (const QString &extra : readStringList(obj, "ignoredSymbols")) {
+            if (!source.ignoredSymbols.contains(extra))
+                source.ignoredSymbols.append(extra);
+        }
         source.allowLegacyPrefix = readBool(obj, "allowLegacyPrefix", true);
         source.groupedFiveColumn = readBool(obj, "groupedFiveColumn", false);
         source.recursive = readBool(obj, "recursive", true);
@@ -290,9 +311,7 @@ QList<ConfigIssue> validateConfig(const AppConfig &config)
     }
 
     const QStringList canonical = canonicalChannelIds();
-    QHash<QString, ChannelConfig> fixedChannels;
-    for (const ChannelConfig &standard : defaultChannels())
-        fixedChannels.insert(standard.id, standard);
+    const QHash<QString, ChannelConfig> fixedChannels = defaultChannelMap();
     QSet<QString> seenChannels;
     QHash<QString, QString> aliasOwner; // "source|alias" → channel
     for (const auto &channel : config.channels) {

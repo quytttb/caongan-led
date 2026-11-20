@@ -90,6 +90,7 @@ private slots:
     void newerInvalidReplacesOldGood();
     void deviceStatusOverridesThreshold();
     void maintenanceAndFaultLabels();
+    void missingValueKeepsDeviceStatus();
     void freshnessBoundaries();
     void staleAndFutureDisplay();
     void unitMismatch();
@@ -293,6 +294,41 @@ void TestReadingStore::maintenanceAndFaultLabels()
     QVERIFY(co);
     QCOMPARE(co->statusText, QStringLiteral("LỖI"));
     QCOMPARE(co->threshold, ThresholdResult::NotEvaluated);
+}
+
+void TestReadingStore::missingValueKeepsDeviceStatus()
+{
+    LatestReadingStore store;
+    store.setConfig(defaultAppConfig());
+    const QDateTime now = utc(QStringLiteral("2026-01-01T05:10:00Z"));
+
+    QCOMPARE(store.apply(coReading(std::nullopt, now.addSecs(-30),
+                                   DeviceStatus::DeviceFault, Validity::Missing), now).code,
+             ApplyOutcome::Code::Accepted);
+    QVector<ChannelState> states = store.evaluate(now);
+    const ChannelState *co = findState(states, QStringLiteral("co"));
+    QVERIFY(co);
+    QCOMPARE(co->display, DisplayState::DeviceFault);
+    QCOMPARE(co->statusText, QStringLiteral("LỖI"));
+    QCOMPARE(co->valueText, QStringLiteral("—"));
+    QCOMPARE(co->threshold, ThresholdResult::NotEvaluated);
+
+    QCOMPARE(store.apply(coReading(std::nullopt, now.addSecs(-20),
+                                   DeviceStatus::Calibrating, Validity::Missing), now).code,
+             ApplyOutcome::Code::Accepted);
+    states = store.evaluate(now);
+    co = findState(states, QStringLiteral("co"));
+    QVERIFY(co);
+    QCOMPARE(co->display, DisplayState::Calibrating);
+    QCOMPARE(co->valueText, QStringLiteral("—"));
+
+    QCOMPARE(store.apply(coReading(std::nullopt, now.addSecs(-10),
+                                   DeviceStatus::Measuring, Validity::Missing), now).code,
+             ApplyOutcome::Code::Accepted);
+    states = store.evaluate(now);
+    co = findState(states, QStringLiteral("co"));
+    QVERIFY(co);
+    QCOMPARE(co->display, DisplayState::NoData);
 }
 
 void TestReadingStore::freshnessBoundaries()

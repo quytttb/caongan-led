@@ -6,6 +6,7 @@
   "companyName": "CÔNG TY NHIỆT ĐIỆN CAO NGẠN - TKV"
  },
  "display": {
+  "autoDetectExternal": true,
   "designHeight": 960,
   "designWidth": 1600,
   "fullScreen": true,
@@ -203,7 +204,7 @@
     "pH",
     "PH"
    ],
-   "decimals": 1,
+   "decimals": 2,
    "displayName": "Độ pH",
    "group": "wastewater",
    "id": "ph",
@@ -239,7 +240,7 @@
    "aliases": [
     "COD"
    ],
-   "decimals": 1,
+   "decimals": 2,
    "displayName": "Nhu cầu oxy hóa học",
    "group": "wastewater",
    "id": "cod",

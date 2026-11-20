@@ -57,6 +57,7 @@ private slots:
     void stabilityNeedsTwoObservations();
     void stabilityDetectsChange();
     void stabilityForgetAndPrune();
+    void prioritizesNewestDateFoldersWhenTruncated();
 };
 
 void TestScan::scansOnlyStableTxtFiles()
@@ -242,6 +243,39 @@ void TestScan::stabilityForgetAndPrune()
 
     tracker.clear();
     QCOMPARE(tracker.observe(b, 1, 1, t0), FileStabilityTracker::Status::Waiting);
+}
+
+void TestScan::prioritizesNewestDateFoldersWhenTruncated()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString root = dir.path();
+
+    // Tạo nhiều thư mục ngày cũ vượt giới hạn 25 entry để giả lập backlog dài ngày.
+    const QDate base(2025, 1, 1);
+    for (int i = 0; i < 60; ++i) {
+        const QDate d = base.addDays(i);
+        const QString flat = d.toString(QStringLiteral("yyyyMMdd"));
+        const QString nested = d.toString(QStringLiteral("yyyy/MM/dd"));
+        QVERIFY(writeFile(root + QStringLiteral("/%1/TNg_NDCN_NUONT1_%1120000.txt").arg(flat),
+                          QByteArrayLiteral("pH\t7.5\t-\t20250101120000\t00\n")));
+        QVERIFY(writeFile(root + QStringLiteral("/%1/TNg_NDCN_KHITO1_%2120000.txt").arg(nested, flat),
+                          QByteArrayLiteral("O2\t5.6\t%V\t20250101120000\t00\n")));
+    }
+
+    const QString newestFlat = QStringLiteral("20261118/TNg_NDCN_NUONT1_20261118100000.txt");
+    const QString newestNested = QStringLiteral("2026/11/18/TNg_NDCN_KHITO1_20261118100500.txt");
+    QVERIFY(writeFile(root + QLatin1Char('/') + newestFlat,
+                      QByteArrayLiteral("pH\t7.7\t-\t20261118100000\t00\n")));
+    QVERIFY(writeFile(root + QLatin1Char('/') + newestNested,
+                      QByteArrayLiteral("O2\t5.6\t%V\t20261118100500\t00\n")));
+
+    const DirectoryScanResult result = scanSourceFolder(sourceFor(root), 25);
+    QVERIFY(result.rootAvailable);
+    QVERIFY(result.truncated);
+    const QSet<QString> paths = relativePaths(result);
+    QVERIFY2(paths.contains(newestFlat), qPrintable(QStringList(paths.values()).join(", ")));
+    QVERIFY2(paths.contains(newestNested), qPrintable(QStringList(paths.values()).join(", ")));
 }
 
 QTEST_GUILESS_MAIN(TestScan)

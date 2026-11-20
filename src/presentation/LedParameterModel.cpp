@@ -4,8 +4,6 @@
 #include "domain/ParameterCatalog.h"
 #include "domain/Tt10Time.h"
 
-#include <QLocale>
-
 namespace caongan {
 
 LedParameterModel::LedParameterModel(QObject *parent)
@@ -25,44 +23,28 @@ QVariant LedParameterModel::data(const QModelIndex &index, int role) const
 
     const ChannelState &state = m_states.at(index.row());
     switch (role) {
-    case ChannelIdRole:     return state.config.id;
-    case SymbolRole:        return state.config.symbol;
-    case DisplayNameRole:   return state.config.displayName;
-    case UnitRole:          return state.config.unit;
-    case RangeTextRole:     return state.config.rangeText;
-    case GroupRole:         return channelGroupId(state.config.group);
-    case GroupTitleRole:    return channelGroupTitle(state.config.group);
-    case ValueTextRole:     return state.valueText;
-    case StatusTextRole:    return state.statusText;
-    case StateKeyRole:      return state.stateKey;
-    case SeverityRole:      return state.severity;
-    case DetailTextRole:    return state.detailText;
+    case ChannelIdRole:  return state.config.id;
+    case SymbolRole:     return state.config.symbol;
+    case UnitRole:       return state.config.unit;
+    case RangeTextRole:  return state.config.rangeText;
+    case ValueTextRole:  return state.valueText;
+    case StatusTextRole: return state.statusText;
+    case StateKeyRole:   return state.stateKey;
+    case DetailTextRole: return state.detailText;
     case TimeTextRole:
         return state.hasReading && state.reading.measuredAtUtc.isValid()
             ? tt10::formatLocalDisplay(state.reading.measuredAtUtc, QStringLiteral("HH:mm:ss dd/MM"))
             : QStringLiteral("—");
-    case ThresholdTextRole: {
+    case ThresholdTextRole:
         if (!state.config.threshold.configured())
             return QStringLiteral("Chưa đặt ngưỡng");
         // pH hiển thị ngưỡng ngay trên LED: không làm tròn mất phần thập phân
         // của ngưỡng người vận hành vừa lưu.
-        if (state.config.id == QStringLiteral("ph")) {
-            const Threshold &threshold = state.config.threshold;
-            const auto number = [](double value) {
-                return QString::number(value, 'f', QLocale::FloatingPointShortest);
-            };
-            if (threshold.hasLow && threshold.hasHigh)
-                return QStringLiteral("%1 – %2").arg(number(threshold.low), number(threshold.high));
-            if (threshold.hasHigh)
-                return QStringLiteral("≤ %1").arg(number(threshold.high));
-            return QStringLiteral("≥ %1").arg(number(threshold.low));
-        }
+        if (state.config.id == QStringLiteral("ph"))
+            return formatShortestThreshold(state.config.threshold);
         return formatThreshold(state.config.threshold, state.config.decimals);
-    }
-    case SourceNameRole:    return state.sourceName;
-    case HasReadingRole:    return state.hasReading;
-    case AgeTextRole:       return state.hasReading ? formatAge(state.ageSeconds) : QStringLiteral("—");
-    default:                return {};
+    default:
+        return {};
     }
 }
 
@@ -71,21 +53,14 @@ QHash<int, QByteArray> LedParameterModel::roleNames() const
     return {
         {ChannelIdRole, "channelId"},
         {SymbolRole, "symbol"},
-        {DisplayNameRole, "displayName"},
         {UnitRole, "unit"},
         {RangeTextRole, "rangeText"},
-        {GroupRole, "group"},
-        {GroupTitleRole, "groupTitle"},
         {ValueTextRole, "valueText"},
         {StatusTextRole, "statusText"},
         {StateKeyRole, "stateKey"},
-        {SeverityRole, "severity"},
         {DetailTextRole, "detailText"},
         {TimeTextRole, "timeText"},
         {ThresholdTextRole, "thresholdText"},
-        {SourceNameRole, "sourceName"},
-        {HasReadingRole, "hasReading"},
-        {AgeTextRole, "ageText"},
     };
 }
 
@@ -94,35 +69,16 @@ void LedParameterModel::setConfig(const AppConfig &config)
     m_config = config;
     m_config.channels = orderChannels(m_config.channels);
     rebuildPlaceholders();
-    emit statesChanged();
 }
 
 void LedParameterModel::rebuildPlaceholders()
 {
+    const QDateTime now = QDateTime::currentDateTimeUtc();
     beginResetModel();
     m_states.clear();
-    for (const ChannelConfig &channel : m_config.channels) {
-        ChannelState state;
-        state.config = channel;
-        if (const SourceConfig *source = m_config.sourceById(channel.sourceId))
-            state.sourceName = source->name;
-        state.hasReading = false;
-        state.validity = Validity::Missing;
-        state.freshness = Freshness::NoReading;
-        state.threshold = channel.threshold.configured()
-            ? ThresholdResult::NotEvaluated
-            : ThresholdResult::NotConfigured;
-        const ChannelEvaluation display = evaluateDisplay(
-            channel, nullptr, Validity::Missing, Freshness::NoReading,
-            state.threshold, false, QDateTime::currentDateTimeUtc());
-        state.display = display.display;
-        state.valueText = display.valueText;
-        state.statusText = display.statusText;
-        state.stateKey = display.stateKey;
-        state.severity = display.severity;
-        state.detailText = display.detailText;
-        m_states.append(state);
-    }
+    m_states.reserve(m_config.channels.size());
+    for (const ChannelConfig &channel : m_config.channels)
+        m_states.append(makePlaceholderChannelState(channel, now));
     endResetModel();
 }
 
@@ -130,13 +86,11 @@ void LedParameterModel::setStates(const QVector<ChannelState> &states)
 {
     if (states.isEmpty()) {
         rebuildPlaceholders();
-        emit statesChanged();
         return;
     }
     beginResetModel();
     m_states = states;
     endResetModel();
-    emit statesChanged();
 }
 
 } // namespace caongan

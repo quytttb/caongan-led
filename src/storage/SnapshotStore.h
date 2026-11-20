@@ -42,16 +42,11 @@ public:
     bool hasProcessedContent(const QString &contentHash, QString *error = nullptr);
     bool prune(int retentionDays, int maxRows, QString *error = nullptr);
 
-    QString databasePath() const { return m_databasePath; }
-    QString lastError() const { return m_lastError; }
-
 private:
     bool ensureSchema(QString *error);
-    void setError(const QString &message);
 
     QString m_databasePath;
     QString m_connectionName;
-    QString m_lastError;
     bool m_open = false;
 };
 

@@ -11,13 +11,6 @@ namespace caongan {
 
 namespace {
 
-constexpr int kTimestampDigits = 14;
-
-QString trimmed(const QString &value)
-{
-    return value.trimmed();
-}
-
 bool isPlaceholder(const QString &value)
 {
     const QString v = value.trimmed();
@@ -88,8 +81,7 @@ FileNameInfo parseFileName(const QString &fileName, const SourceConfig &source)
     }
 
     const QString timestampText = parts.constLast().trimmed();
-    static const QRegularExpression digits(QStringLiteral("^\\d{14}$"));
-    if (!digits.match(timestampText).hasMatch()) {
+    if (!tt10::isTimestampDigits(timestampText)) {
         info.error = QStringLiteral("Tên file không kết thúc bằng timestamp 14 chữ số");
         return info;
     }
@@ -127,11 +119,8 @@ FileNameInfo parseFileName(const QString &fileName, const SourceConfig &source)
 ParseResult parseTt10Content(const QString &fileName,
                              const QByteArray &content,
                              const SourceConfig &source,
-                             const QDateTime &nowUtc,
                              const ParseLimits &limits)
 {
-    Q_UNUSED(nowUtc)
-
     ParseResult result;
     result.accepted = false;
 
@@ -232,11 +221,11 @@ ParseResult parseTt10Content(const QString &fileName,
 
             Tt10Record record;
             record.line = lineIndex + 1;
-            record.symbol = trimmed(group.at(0));
-            record.rawValue = trimmed(group.at(1));
-            record.unit = trimmed(group.at(2));
-            record.timestampText = trimmed(group.at(3));
-            record.statusText = group.size() >= 5 ? trimmed(group.at(4)) : QString();
+            record.symbol = group.at(0).trimmed();
+            record.rawValue = group.at(1).trimmed();
+            record.unit = group.at(2).trimmed();
+            record.timestampText = group.at(3).trimmed();
+            record.statusText = group.size() >= 5 ? group.at(4).trimmed() : QString();
 
             if (record.symbol.isEmpty()) {
                 addIssue(result, record.line, QStringLiteral("missing_symbol"),
@@ -249,7 +238,6 @@ ParseResult parseTt10Content(const QString &fileName,
             record.measuredAtUtc = tt10::parseTimestamp(record.timestampText, &timeError);
             if (!record.measuredAtUtc.isValid()) {
                 addIssue(result, record.line, QStringLiteral("bad_timestamp"), timeError);
-                structuralError = true;
                 continue;
             }
 
@@ -315,6 +303,12 @@ ParseResult parseTt10Content(const QString &fileName,
         result.records.clear();
         result.errorCode = QStringLiteral("structure_error");
         result.errorMessage = QStringLiteral("File có lỗi cấu trúc — từ chối toàn bộ batch");
+        return result;
+    }
+
+    if (result.records.isEmpty()) {
+        result.errorCode = QStringLiteral("bad_timestamp");
+        result.errorMessage = QStringLiteral("File không có bản ghi nào mang timestamp hợp lệ");
         return result;
     }
 

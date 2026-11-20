@@ -1,5 +1,7 @@
 # Kế hoạch xây dựng phần mềm LED Cao Ngạn — C++ / Qt / QML
 
+> Ghi chú lịch sử (19/11/2026): chế độ preview và simulator trong ứng dụng đã được bỏ hoàn toàn; các mục nhắc `--preview`, `--simulate` hoặc simulator dưới đây chỉ còn giá trị lịch sử lập kế hoạch.
+
 - Ngày lập: 02/11/2026.
 - Trạng thái: kế hoạch chi tiết, chưa triển khai mã nguồn.
 - Phạm vi đã thống nhất: chỉ thay ứng dụng hiển thị LED trên Windows.

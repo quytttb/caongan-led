@@ -1,7 +1,6 @@
 #include "Tt10Time.h"
 
 #include <QDate>
-#include <QRegularExpression>
 #include <QTime>
 #include <QTimeZone>
 
@@ -17,11 +16,22 @@ QTimeZone vietnamZone()
 
 } // namespace
 
+bool isTimestampDigits(const QString &text)
+{
+    const QString value = text.trimmed();
+    if (value.size() != kTimestampDigits)
+        return false;
+    for (const QChar ch : value) {
+        if (ch < QLatin1Char('0') || ch > QLatin1Char('9'))
+            return false;
+    }
+    return true;
+}
+
 QDateTime parseTimestamp(const QString &text, QString *error)
 {
     const QString value = text.trimmed();
-    static const QRegularExpression digitsOnly(QStringLiteral("^\\d{14}$"));
-    if (!digitsOnly.match(value).hasMatch()) {
+    if (!isTimestampDigits(value)) {
         if (error)
             *error = QStringLiteral("Timestamp phải có đúng 14 chữ số YYYYMMDDHHMMSS");
         return {};

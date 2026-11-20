@@ -26,13 +26,11 @@ class LatestReadingStore
 {
 public:
     void setConfig(const AppConfig &config);
-    const AppConfig &config() const { return m_config; }
 
     ApplyOutcome apply(const Reading &reading, const QDateTime &nowUtc);
     void loadPersisted(const QVector<Reading> &readings, const QDateTime &nowUtc = {});
 
     QVector<ChannelState> evaluate(const QDateTime &nowUtc) const;
-    QVector<Reading> readings() const;
     bool latestReading(const QString &channelId, Reading *reading) const;
     bool hasReading(const QString &channelId) const;
     void clear();

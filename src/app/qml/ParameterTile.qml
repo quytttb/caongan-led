@@ -11,13 +11,13 @@ Item {
     property string valueText: "—"
     property string statusText: "CHƯA CÓ DỮ LIỆU"
     property string stateKey: "noData"
-    property string timeText: "—"
-    property string detailText: ""
 
-    function accentFor(key) {
+    function stateColor(key, alarmOnExceeds) {
+        if (key === "exceedsLimit")
+            return alarmOnExceeds ? "#FF5252" : "#00E5FF"
         switch (key) {
+        case "measuring":
         case "withinLimit":
-        case "exceedsLimit":
             return "#00E5FF"
         case "deviceFault":
         case "conflict":
@@ -41,45 +41,47 @@ Item {
         color: "#000000"
         radius: 6
         border.width: 2
-        border.color: root.accentFor(root.stateKey)
+        border.color: root.stateColor(root.stateKey, false)
     }
 
     Text {
         id: symbolText
+        objectName: "parameterSymbol"
         x: 14
-        y: 4
+        y: 2
         text: root.symbol
-        color: root.accentFor(root.stateKey)
+        color: root.stateColor(root.stateKey, false)
         font.family: "Inter"
-        font.pixelSize: 34
+        font.pixelSize: 36
         font.bold: true
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     Text {
         id: unitText
+        objectName: "parameterUnit"
         anchors.right: parent.right
         anchors.rightMargin: 14
-        y: 10
+        y: 6
         width: 160
         text: root.unit
-        color: root.accentFor(root.stateKey)
+        color: root.stateColor(root.stateKey, false)
         font.family: "Inter"
-        font.pixelSize: 24
+        font.pixelSize: 29
         horizontalAlignment: Text.AlignRight
         elide: Text.ElideRight
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     Text {
         id: valueText
         anchors.horizontalCenter: parent.horizontalCenter
         objectName: "readingValue"
-        y: 43
+        y: 48
         width: parent.width - 24
         height: 72
         text: root.valueText
-        color: root.stateKey === "exceedsLimit" ? "#FF5252" : root.accentFor(root.stateKey)
+        color: root.stateColor(root.stateKey, true)
         font.family: "Inter"
         font.pixelSize: 82
         font.bold: true
@@ -87,33 +89,33 @@ Item {
         verticalAlignment: Text.AlignVCenter
         fontSizeMode: Text.Fit
         minimumPixelSize: 32
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     Text {
         objectName: "measurementRange"
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 118
+        y: 120
         width: parent.width - 24
-        height: 27
+        height: 32
         text: root.rangeText.length ? "(" + root.rangeText + ")" : ""
-        color: root.accentFor(root.stateKey)
+        color: root.stateColor(root.stateKey, false)
         font.family: "Inter"
-        font.pixelSize: 24
+        font.pixelSize: 29
         minimumPixelSize: 14
         fontSizeMode: Text.Fit
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
-        renderType: Text.NativeRendering
+        renderType: Text.QtRendering
     }
 
     LedStatusLabel {
         objectName: "tileStatus"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 7
-        height: 32
-        stateKey: root.stateKey
+        anchors.bottomMargin: 5
+        height: 36
+        accentColor: root.stateColor(root.stateKey, true)
         text: {
             switch (root.stateKey) {
             case "withinLimit":
@@ -127,7 +129,7 @@ Item {
             default: return root.statusText
             }
         }
-        fontSize: 22
+        fontSize: 26
         maximumWidth: parent.width - 24
     }
 }

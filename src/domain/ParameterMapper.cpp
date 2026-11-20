@@ -44,6 +44,13 @@ MapResult ParameterMapper::map(const ParseResult &parsed,
             aliasToChannel.insert(normalizeSymbol(alias), &channel);
     }
 
+    QSet<QString> ignored;
+    for (const QString &sym : source.ignoredSymbols) {
+        const QString normalized = normalizeSymbol(sym);
+        if (!normalized.isEmpty())
+            ignored.insert(normalized);
+    }
+
     QSet<QString> unknownSymbols;
     QSet<QString> emittedMissing;
 
@@ -51,6 +58,8 @@ MapResult ParameterMapper::map(const ParseResult &parsed,
         const QString key = normalizeSymbol(record.symbol);
         const ChannelConfig *channel = aliasToChannel.value(key, nullptr);
         if (!channel) {
+            if (ignored.contains(key))
+                continue;
             if (!unknownSymbols.contains(record.symbol)) {
                 unknownSymbols.insert(record.symbol);
                 result.diagnostics.append(

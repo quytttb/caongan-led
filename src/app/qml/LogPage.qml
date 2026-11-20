@@ -6,15 +6,19 @@ import LoggerKit.Theme
 
 Item {
     id: page
-    property string statusText: ""
-    property bool statusIsError: false
 
-    function report(error, success) {
-        statusIsError = error.length > 0
-        statusText = statusIsError ? error : success
+    function refreshAndScrollToEnd() {
+        notice.showResult(app.refreshLogFiles(), "")
+        Qt.callLater(function() {
+            logViewerText.cursorPosition = logViewerText.length
+        })
     }
 
-    Component.onCompleted: report(app.refreshLogFiles(), "")
+    Component.onCompleted: refreshAndScrollToEnd()
+    onVisibleChanged: {
+        if (visible)
+            refreshAndScrollToEnd()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -47,18 +51,18 @@ Item {
                 Layout.fillWidth: true
                 model: app.logFiles
                 currentIndex: app.logFiles.indexOf(app.selectedLog)
-                onActivated: page.report(app.selectLog(currentText), "")
+                onActivated: notice.showResult(app.selectLog(currentText), "")
             }
             Button {
                 objectName: "refreshLogsButton"
                 text: "Làm mới"
-                onClicked: page.report(app.refreshLogFiles(), "Đã cập nhật nhật ký.")
+                onClicked: notice.showResult(app.refreshLogFiles(), "Đã cập nhật nhật ký.")
             }
             Button {
                 objectName: "copyLogButton"
                 text: "Sao chép"
                 enabled: app.logContent.length > 0
-                onClicked: page.report(app.copyLog(), "Đã sao chép nội dung đang xem.")
+                onClicked: notice.showResult(app.copyLog(), "Đã sao chép nội dung đang xem.")
             }
             Button {
                 objectName: "exportLogButton"
@@ -73,9 +77,8 @@ Item {
         }
 
         InlineNotice {
+            id: notice
             Layout.fillWidth: true
-            text: page.statusText
-            isError: page.statusIsError
         }
         Text {
             Layout.fillWidth: true
@@ -94,6 +97,7 @@ Item {
             ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
             TextArea {
+                id: logViewerText
                 objectName: "logViewerText"
                 text: app.logContent
                 readOnly: true
@@ -120,6 +124,6 @@ Item {
         fileMode: FileDialog.SaveFile
         nameFilters: ["Tệp log (*.log)", "Tệp văn bản (*.txt)", "Tất cả tệp (*)"]
         defaultSuffix: "log"
-        onAccepted: page.report(app.exportLog(selectedFile), "Đã xuất tệp nhật ký.")
+        onAccepted: notice.showResult(app.exportLog(selectedFile), "Đã xuất tệp nhật ký.")
     }
 }

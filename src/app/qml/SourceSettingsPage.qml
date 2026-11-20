@@ -1,13 +1,43 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import LoggerKit.Theme
 
 Item {
     id: page
 
-    property string statusText: ""
-    property bool statusIsError: false
+    property var drafts: ({})
+
+    function draftFor(source) {
+        const existing = drafts[source.id]
+        if (existing && existing.dirty === true)
+            return existing
+        return {
+            folder: source.folder || "",
+            stationCode: source.stationCode || "",
+            staleSeconds: source.staleSeconds || 900,
+            dirty: false
+        }
+    }
+
+    function setDraftField(source, key, value) {
+        const base = draftFor(source)
+        const next = Object.assign({}, drafts)
+        next[source.id] = {
+            folder: key === "folder" ? value : base.folder,
+            stationCode: key === "stationCode" ? value : base.stationCode,
+            staleSeconds: key === "staleSeconds" ? value : base.staleSeconds,
+            dirty: true
+        }
+        drafts = next
+    }
+
+    function clearDraft(sourceId) {
+        const next = Object.assign({}, drafts)
+        delete next[sourceId]
+        drafts = next
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -39,16 +69,14 @@ Item {
                 text: "Quét lại ngay"
                 onClicked: {
                     app.requestRescan()
-                    page.statusIsError = false
-                    page.statusText = "Đã gửi yêu cầu quét lại. Kết quả sẽ xuất hiện trong tab Chẩn đoán."
+                    notice.showInfo("Đã gửi yêu cầu quét lại. Kết quả sẽ xuất hiện trong tab Chẩn đoán.")
                 }
             }
         }
 
         InlineNotice {
+            id: notice
             Layout.fillWidth: true
-            text: page.statusText
-            isError: page.statusIsError
         }
 
         ScrollView {
@@ -68,6 +96,8 @@ Item {
 
                     delegate: Rectangle {
                         id: sourceCard
+                        required property var modelData
+                        objectName: "sourceCard_" + modelData.id
                         Layout.fillWidth: true
                         implicitHeight: cardColumn.implicitHeight + 44
                         radius: 8
@@ -77,6 +107,25 @@ Item {
 
                         property var live: app.sourceStatuses[modelData.id] || ({})
                         property bool online: live.available === true
+
+                        Component.onCompleted: {
+                            const draft = page.draftFor(modelData)
+                            folderField.text = draft.folder
+                            stationField.text = draft.stationCode
+                            staleSpin.value = draft.staleSeconds
+                        }
+
+                        FolderDialog {
+                            id: folderDialog
+                            title: "Chọn thư mục nguồn " + sourceCard.modelData.name
+                            onAccepted: {
+                                const path = app.urlToLocalPath(selectedFolder)
+                                if (path.length > 0) {
+                                    folderField.text = path
+                                    page.setDraftField(sourceCard.modelData, "folder", path)
+                                }
+                            }
+                        }
 
                         ColumnLayout {
                             id: cardColumn
@@ -91,14 +140,14 @@ Item {
                                 spacing: 10
 
                                 Text {
-                                    text: modelData.name
+                                    text: sourceCard.modelData.name
                                     color: AppColors.primaryText
                                     font.family: "Inter"
                                     font.pixelSize: 20
                                     font.bold: true
                                 }
                                 Text {
-                                    text: "• " + modelData.id
+                                    text: "• " + sourceCard.modelData.id
                                     color: AppColors.textMuted
                                     font.family: "Inter"
                                     font.pixelSize: 13
@@ -137,7 +186,8 @@ Item {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: sourceCard.live.message || "Chưa có trạng thái từ bộ đọc thư mục."
+                                text: (sourceCard.live.message || "Chưa có trạng thái từ bộ đọc thư mục.")
+                                      + (sourceCard.live.lastFileText ? (" • File gần nhất: " + sourceCard.live.lastFileText) : "")
                                 color: sourceCard.online ? AppColors.textMuted : AppColors.warning
                                 font.family: "Inter"
                                 font.pixelSize: 13
@@ -156,15 +206,26 @@ Item {
                                     font.family: "Inter"
                                     font.pixelSize: 13
                                 }
-                                TextField {
-                                    id: folderField
+                                RowLayout {
                                     Layout.fillWidth: true
                                     Layout.columnSpan: 3
-                                    text: modelData.folder
-                                    placeholderText: "Ví dụ D:\\CEMS\\KHITO1 (để trống nếu chưa cấu hình)"
-                                    selectByMouse: true
-                                    font.family: "Inter"
-                                    font.pixelSize: 14
+                                    spacing: 8
+
+                                    TextField {
+                                        id: folderField
+                                        objectName: "sourceFolderField_" + sourceCard.modelData.id
+                                        Layout.fillWidth: true
+                                        placeholderText: "Ví dụ D:\\CEMS\\KHITO1 (để trống nếu chưa cấu hình)"
+                                        selectByMouse: true
+                                        font.family: "Inter"
+                                        font.pixelSize: 14
+                                        onTextEdited: page.setDraftField(sourceCard.modelData, "folder", text)
+                                    }
+                                    Button {
+                                        objectName: "browseFolderButton_" + sourceCard.modelData.id
+                                        text: "Chọn…"
+                                        onClicked: folderDialog.open()
+                                    }
                                 }
 
                                 Text {
@@ -175,32 +236,38 @@ Item {
                                 }
                                 TextField {
                                     id: stationField
+                                    objectName: "sourceStationField_" + sourceCard.modelData.id
                                     Layout.preferredWidth: 240
-                                    text: modelData.stationCode
                                     selectByMouse: true
                                     font.family: "Inter"
                                     font.pixelSize: 14
+                                    onTextEdited: page.setDraftField(sourceCard.modelData, "stationCode", text)
                                 }
                                 Text {
-                                    text: "Stale timeout"
+                                    text: "Thời gian coi dữ liệu cũ"
                                     color: AppColors.textMuted
                                     font.family: "Inter"
                                     font.pixelSize: 13
                                 }
-                                SpinBox {
-                                    id: staleSpin
-                                    Layout.preferredWidth: 180
-                                    from: 10
-                                    to: 86400
-                                    stepSize: 60
-                                    editable: true
-                                    value: modelData.staleSeconds
-                                }
-                                Text {
-                                    text: "giây"
-                                    color: AppColors.textMuted
-                                    font.family: "Inter"
-                                    font.pixelSize: 13
+                                RowLayout {
+                                    spacing: 8
+                                    SpinBox {
+                                        id: staleSpin
+                                        objectName: "sourceStaleSpin_" + sourceCard.modelData.id
+                                        Layout.preferredWidth: 180
+                                        from: 10
+                                        to: 86400
+                                        stepSize: 60
+                                        editable: true
+                                        onValueModified: page.setDraftField(sourceCard.modelData, "staleSeconds", value)
+                                    }
+                                    Text {
+                                        objectName: "sourceStaleUnit_" + sourceCard.modelData.id
+                                        text: "giây"
+                                        color: AppColors.textMuted
+                                        font.family: "Inter"
+                                        font.pixelSize: 13
+                                    }
                                 }
                             }
 
@@ -215,27 +282,33 @@ Item {
                                     wrapMode: Text.WordWrap
                                 }
                                 Button {
+                                    objectName: "saveSourceButton_" + sourceCard.modelData.id
                                     text: "Lưu nguồn"
                                     highlighted: true
                                     onClicked: {
-                                        const id = modelData.id
+                                        if (staleSpin.contentItem && staleSpin.contentItem.text !== undefined) {
+                                            const rawStale = staleSpin.contentItem.text.trim()
+                                            if (/^-?\d+$/.test(rawStale)) {
+                                                const parsed = parseInt(rawStale, 10)
+                                                staleSpin.value = Math.max(staleSpin.from, Math.min(staleSpin.to, parsed))
+                                                page.setDraftField(sourceCard.modelData, "staleSeconds", staleSpin.value)
+                                            }
+                                        }
+                                        const id = sourceCard.modelData.id
+                                        const name = sourceCard.modelData.name
                                         const folder = folderField.text
                                         const station = stationField.text
                                         const stale = staleSpin.value
                                         dialog.ask(
-                                            "Lưu cấu hình nguồn " + modelData.name,
+                                            "Lưu cấu hình nguồn " + name,
                                             "Thư mục: " + (folder.length ? folder : "(chưa cấu hình)") +
-                                            "\nMã trạm: " + station + "\nStale timeout: " + stale + " giây" +
+                                            "\nMã trạm: " + station + "\nThời gian coi dữ liệu cũ: " + stale + " giây" +
                                             "\n\nThay đổi này áp dụng cho toàn bộ kênh thuộc nguồn.",
                                             function() {
                                                 const error = app.updateSource(id, folder, station, stale)
-                                                if (error.length > 0) {
-                                                    page.statusIsError = true
-                                                    page.statusText = error
-                                                } else {
-                                                    page.statusIsError = false
-                                                    page.statusText = "Đã lưu cấu hình nguồn " + modelData.name + "."
-                                                }
+                                                if (error.length === 0)
+                                                    page.clearDraft(id)
+                                                notice.showResult(error, "Đã lưu cấu hình nguồn " + name + ".")
                                             })
                                     }
                                 }

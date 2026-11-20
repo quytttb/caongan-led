@@ -73,6 +73,7 @@ private slots:
     void fixedThresholds_data();
     void fixedThresholds();
     void oldDisplayConfigMigrates();
+    void legacyDisplayModeDefaults();
     void incompatibleThresholdUnitRejected();
     void displaySizeValidation();
     void duplicateSourceRejected();
@@ -146,6 +147,7 @@ void TestConfig::jsonRoundTrip()
 {
     AppConfig config = defaultAppConfig();
     config.branding.companyName = QStringLiteral("Công ty thử nghiệm");
+    config.display.autoDetectExternal = false;
     config.display.targetScreenName = QStringLiteral("LED-1");
     config.display.fullScreen = false;
     config.sources[0].folder = QStringLiteral("/tmp/khong-gui");
@@ -158,6 +160,7 @@ void TestConfig::jsonRoundTrip()
     QVERIFY2(configFromJson(original, parsed, &errors),
              qPrintable(errors.join("\n")));
     QCOMPARE(configToJson(parsed), original);
+    QVERIFY(!parsed.display.autoDetectExternal);
     QCOMPARE(parsed.display.targetScreenName, QStringLiteral("LED-1"));
     QVERIFY(!parsed.display.fullScreen);
     // Ngưỡng người vận hành lưu được giữ; dải đo vẫn lấy từ danh mục.
@@ -509,6 +512,27 @@ void TestConfig::oldDisplayConfigMigrates()
         QCOMPARE(parsed.channelById(QStringLiteral("co"))->threshold.high, 480.0);
         QVERIFY(validateConfig(parsed).isEmpty());
     }
+}
+
+void TestConfig::legacyDisplayModeDefaults()
+{
+    QJsonObject missingKey = configToJson(defaultAppConfig());
+    QJsonObject display = missingKey.value(QStringLiteral("display")).toObject();
+    display.remove(QStringLiteral("autoDetectExternal"));
+
+    // Cấu hình cũ chưa có khóa autoDetectExternal cũng chuyển sang tự nhận
+    // màn ngoài; tên màn cũ vẫn được đọc để dùng khi tắt tự động.
+    display.insert(QStringLiteral("targetScreenName"), QString());
+    missingKey.insert(QStringLiteral("display"), display);
+    AppConfig parsed;
+    QVERIFY(configFromJson(missingKey, parsed));
+    QVERIFY(parsed.display.autoDetectExternal);
+
+    display.insert(QStringLiteral("targetScreenName"), QStringLiteral("LED-1"));
+    missingKey.insert(QStringLiteral("display"), display);
+    QVERIFY(configFromJson(missingKey, parsed));
+    QVERIFY(parsed.display.autoDetectExternal);
+    QCOMPARE(parsed.display.targetScreenName, QStringLiteral("LED-1"));
 }
 
 void TestConfig::incompatibleThresholdUnitRejected()

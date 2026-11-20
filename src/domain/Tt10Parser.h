@@ -45,7 +45,6 @@ FileNameInfo parseFileName(const QString &fileName, const SourceConfig &source);
 ParseResult parseTt10Content(const QString &fileName,
                              const QByteArray &content,
                              const SourceConfig &source,
-                             const QDateTime &nowUtc,
                              const ParseLimits &limits = {});
 
 // Dùng chung cho parser và test: parse số theo locale C, không nhận NaN/Inf,

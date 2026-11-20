@@ -5,8 +5,6 @@ import LoggerKit.Theme
 
 Item {
     id: page
-    property string statusText: ""
-    property bool statusIsError: false
 
     // Header và các dòng dùng cùng component, cùng chiều rộng vùng cuộn.
     component ChannelRow: Rectangle {
@@ -98,9 +96,8 @@ Item {
             wrapMode: Text.WordWrap
         }
         InlineNotice {
+            id: notice
             Layout.fillWidth: true
-            text: page.statusText
-            isError: page.statusIsError
         }
         ScrollView {
             id: scroll
@@ -260,8 +257,7 @@ Item {
                                 thresholdEditor.errorText = saveError
                             } else {
                                 thresholdEditor.close()
-                                page.statusIsError = false
-                                page.statusText = "Đã lưu và áp dụng ngưỡng cảnh báo."
+                                notice.showInfo("Đã lưu và áp dụng ngưỡng cảnh báo.")
                             }
                         })
                 }

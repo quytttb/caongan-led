@@ -11,8 +11,6 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QLoggingCategory>
-#include <QMetaType>
 
 namespace caongan {
 
@@ -20,8 +18,9 @@ namespace {
 
 constexpr int kScanIntervalMs = 2000;
 constexpr int kMaxFilesPerTick = 20;
-constexpr int kMaxEntriesPerScan = 5000;
+constexpr int kMaxEntriesPerScan = 20000;
 constexpr int kStableMs = 1200;
+constexpr int kFutureRetrySeconds = 15;
 constexpr int kDiagnosticRepeatSeconds = 60;
 constexpr int kPruneIntervalSeconds = 3600;
 
@@ -71,6 +70,26 @@ void pruneMissingKeys(QHash<QString, T> &items, const QSet<QString> &seen)
     }
 }
 
+CheckpointRecord makeCheckpoint(const QString &sourceId,
+                                const FileCandidate &candidate,
+                                const QString &hash,
+                                const QString &outcome,
+                                const QString &message,
+                                const QDateTime &nowUtc)
+{
+    CheckpointRecord record;
+    record.fileKey = candidate.fileKey;
+    record.sourceId = sourceId;
+    record.filePath = candidate.absolutePath;
+    record.size = candidate.size;
+    record.mtimeMs = candidate.mtimeMs;
+    record.contentHash = hash;
+    record.outcome = outcome;
+    record.message = message;
+    record.processedAtUtc = nowUtc;
+    return record;
+}
+
 } // namespace
 
 IngestionService::IngestionService(QObject *parent)
@@ -91,7 +110,6 @@ void IngestionService::start(const AppConfig &config, const QString &snapshotPat
     m_config = config;
     m_config.channels = orderChannels(m_config.channels);
     m_store.setConfig(m_config);
-    m_snapshotPath = snapshotPath;
     m_snapshotStore = std::make_unique<SnapshotStore>(snapshotPath);
     qInfo() << "[ingestion] Khởi động, snapshot" << snapshotPath
             << "nguồn" << m_config.sources.size() << "kênh" << m_config.channels.size();
@@ -99,19 +117,20 @@ void IngestionService::start(const AppConfig &config, const QString &snapshotPat
     const QDateTime now = tt10::nowUtc();
     QString dbError;
     if (!m_snapshotStore->open(&dbError)) {
-        m_storageHealthy = false;
+        const QString msg = QStringLiteral("Không mở được snapshot SQLite: %1").arg(dbError);
+        setStorageHealthy(false, msg);
         addDiagnostic(QStringLiteral("error"), QString(), QString(),
-                      QStringLiteral("snapshot_unavailable"),
-                      QStringLiteral("Không mở được snapshot SQLite: %1").arg(dbError), now);
+                      QStringLiteral("snapshot_unavailable"), msg, now);
     } else {
         QVector<Reading> persisted;
         QString loadError;
         if (!m_snapshotStore->loadReadings(&persisted, &loadError)) {
-            m_storageHealthy = false;
+            const QString msg = QStringLiteral("Không đọc được snapshot: %1").arg(loadError);
+            setStorageHealthy(false, msg);
             addDiagnostic(QStringLiteral("error"), QString(), QString(),
-                          QStringLiteral("snapshot_load_failed"),
-                          QStringLiteral("Không đọc được snapshot: %1").arg(loadError), now);
+                          QStringLiteral("snapshot_load_failed"), msg, now);
         } else {
+            setStorageHealthy(true);
             QVector<Reading> matching;
             for (const Reading &reading : persisted) {
                 if (belongsToConfiguredRoot(reading, m_config)) {
@@ -165,27 +184,17 @@ void IngestionService::reloadConfig(const AppConfig &config)
     flushDiagnostics();
 }
 
-void IngestionService::setPaused(bool paused)
-{
-    if (m_paused == paused)
-        return;
-    m_paused = paused;
-    qInfo() << "[ingestion]" << (paused ? "Tạm dừng nhập nguồn" : "Tiếp tục nhập nguồn");
-    if (!m_paused) {
-        m_rescanRequested = true;
-        // Sau mô phỏng, UI đã bị reset; buộc phát lại snapshot thật thay vì
-        // chờ một kênh đổi giá trị.
-        m_firstEmit = true;
-        m_lastSignatures.clear();
-        if (m_timer)
-            m_timer->start();
-    }
-}
-
 void IngestionService::requestRescan()
 {
     m_rescanRequested = true;
     m_firstEmit = true;
+    for (SourceRuntime *runtime : m_runtimes) {
+        if (!runtime)
+            continue;
+        runtime->backoffUntil.clear();
+        runtime->failureCount.clear();
+        runtime->lastScanUtc = {};
+    }
 }
 
 void IngestionService::shutdown()
@@ -203,7 +212,6 @@ void IngestionService::shutdown()
         m_snapshotStore.reset();
     }
     m_started = false;
-    emit stopped();
 }
 
 void IngestionService::setupRuntime(const AppConfig &config)
@@ -239,11 +247,6 @@ void IngestionService::tick()
         return;
 
     const QDateTime now = tt10::nowUtc();
-    emit heartbeat(now);
-
-    if (m_paused)
-        return;
-
     const bool scanRequested = m_rescanRequested;
     m_rescanRequested = false;
 
@@ -303,15 +306,27 @@ void IngestionService::scanSource(SourceRuntime &runtime, const QDateTime &nowUt
 
     updateWatcher(runtime, scan);
 
-    QSet<QString> seenKeys;
+    QVector<FileCandidate> relevantCandidates;
+    relevantCandidates.reserve(scan.candidates.size());
+    const QString configuredStation = runtime.config.stationCode.trimmed();
     for (const FileCandidate &candidate : scan.candidates) {
+        const FileNameInfo nameInfo = parseFileName(candidate.absolutePath, runtime.config);
+        if (!nameInfo.valid && !nameInfo.stationCode.isEmpty() && !configuredStation.isEmpty()
+            && nameInfo.stationCode.compare(configuredStation, Qt::CaseInsensitive) != 0) {
+            continue;
+        }
+        relevantCandidates.append(candidate);
+    }
+
+    QSet<QString> seenKeys;
+    for (const FileCandidate &candidate : relevantCandidates) {
         seenKeys.insert(candidate.fileKey);
     }
     // Quan sát toàn bộ tập ứng viên trong giới hạn trước khi chọn batch;
     // duyệt vòng để file đã checkpoint hoặc lỗi không chặn mãi file phía sau.
     QVector<FileStabilityTracker::Status> statuses;
-    statuses.reserve(scan.candidates.size());
-    for (const FileCandidate &candidate : scan.candidates)
+    statuses.reserve(relevantCandidates.size());
+    for (const FileCandidate &candidate : relevantCandidates)
         statuses.append(runtime.stability.observe(candidate.fileKey, candidate.size,
                                                   candidate.mtimeMs, nowUtc, kStableMs));
     runtime.stability.pruneMissing(seenKeys);
@@ -319,7 +334,7 @@ void IngestionService::scanSource(SourceRuntime &runtime, const QDateTime &nowUt
     pruneMissingKeys(runtime.backoffUntil, seenKeys);
     pruneMissingKeys(runtime.failureCount, seenKeys);
 
-    const int count = int(scan.candidates.size());
+    const int count = int(relevantCandidates.size());
     if (count == 0) {
         runtime.nextCandidateIndex = 0;
         return;
@@ -330,7 +345,7 @@ void IngestionService::scanSource(SourceRuntime &runtime, const QDateTime &nowUt
         const int index = (start + offset) % count;
         if (statuses.at(index) != FileStabilityTracker::Status::Stable)
             continue;
-        processCandidate(runtime, scan.candidates.at(index), nowUtc);
+        processCandidate(runtime, relevantCandidates.at(index), nowUtc);
         runtime.nextCandidateIndex = (index + 1) % count;
         ++processed;
     }
@@ -375,16 +390,9 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
 
     ParseLimits limits;
     if (before.size() > limits.maxFileBytes) {
-        CheckpointRecord checkpoint;
-        checkpoint.fileKey = candidate.fileKey;
-        checkpoint.sourceId = runtime.config.id;
-        checkpoint.filePath = candidate.absolutePath;
-        checkpoint.size = candidate.size;
-        checkpoint.mtimeMs = candidate.mtimeMs;
-        checkpoint.contentHash = QString();
-        checkpoint.outcome = QStringLiteral("too_large");
-        checkpoint.message = QStringLiteral("File vượt giới hạn %1 bytes").arg(limits.maxFileBytes);
-        checkpoint.processedAtUtc = nowUtc;
+        const CheckpointRecord checkpoint = makeCheckpoint(
+            runtime.config.id, candidate, QString(), QStringLiteral("too_large"),
+            QStringLiteral("File vượt giới hạn %1 bytes").arg(limits.maxFileBytes), nowUtc);
         saveCheckpoint(runtime, checkpoint, nowUtc);
         addDiagnostic(QStringLiteral("error"), runtime.config.id, QString(),
                       QStringLiteral("file_too_large"), checkpoint.message, nowUtc);
@@ -433,21 +441,15 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
     // trùng theo kênh/mốc/nội dung sau khi đã mapping.
 
     const QString fileName = QFileInfo(candidate.absolutePath).fileName();
-    const ParseResult parsed = parseTt10Content(fileName, content, runtime.config, nowUtc, limits);
+    const ParseResult parsed = parseTt10Content(fileName, content, runtime.config, limits);
 
     if (!parsed.stationCode.isEmpty()
         && runtime.config.stationCode.compare(parsed.stationCode, Qt::CaseInsensitive) != 0) {
-        CheckpointRecord skipped;
-        skipped.fileKey = candidate.fileKey;
-        skipped.sourceId = runtime.config.id;
-        skipped.filePath = candidate.absolutePath;
-        skipped.size = candidate.size;
-        skipped.mtimeMs = candidate.mtimeMs;
-        skipped.contentHash = hash;
-        skipped.outcome = QStringLiteral("skipped_other_station");
-        skipped.message = QStringLiteral("File thuộc trạm %1, nguồn này chọn %2")
-                              .arg(parsed.stationCode, runtime.config.stationCode);
-        skipped.processedAtUtc = nowUtc;
+        const CheckpointRecord skipped = makeCheckpoint(
+            runtime.config.id, candidate, hash, QStringLiteral("skipped_other_station"),
+            QStringLiteral("File thuộc trạm %1, nguồn này chọn %2")
+                .arg(parsed.stationCode, runtime.config.stationCode),
+            nowUtc);
         saveCheckpoint(runtime, skipped, nowUtc);
         addDiagnostic(QStringLiteral("info"), runtime.config.id, QString(),
                       QStringLiteral("other_station"), skipped.message, nowUtc);
@@ -465,18 +467,10 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
     }
 
     if (!parsed.accepted) {
-        CheckpointRecord rejected;
-        rejected.fileKey = candidate.fileKey;
-        rejected.sourceId = runtime.config.id;
-        rejected.filePath = candidate.absolutePath;
-        rejected.size = candidate.size;
-        rejected.mtimeMs = candidate.mtimeMs;
-        rejected.contentHash = hash;
-        rejected.outcome = QStringLiteral("rejected");
-        rejected.message = parsed.errorMessage.isEmpty()
-            ? QStringLiteral("File không hợp lệ")
-            : parsed.errorMessage;
-        rejected.processedAtUtc = nowUtc;
+        const CheckpointRecord rejected = makeCheckpoint(
+            runtime.config.id, candidate, hash, QStringLiteral("rejected"),
+            parsed.errorMessage.isEmpty() ? QStringLiteral("File không hợp lệ") : parsed.errorMessage,
+            nowUtc);
         saveCheckpoint(runtime, rejected, nowUtc);
         addDiagnostic(QStringLiteral("error"), runtime.config.id, QString(),
                       parsed.errorCode.isEmpty() ? QStringLiteral("parse_rejected") : parsed.errorCode,
@@ -497,6 +491,7 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
         addDiagnostic(entry.severity, entry.sourceId, entry.channelId, entry.code, entry.message, nowUtc);
 
     QVector<Reading> changed;
+    bool hadFutureRejected = false;
     for (const Reading &reading : mapped.readings) {
         const ApplyOutcome outcome = m_store.apply(reading, nowUtc);
         switch (outcome.code) {
@@ -519,6 +514,7 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
                           QStringLiteral("out_of_order"), outcome.message, nowUtc);
             break;
         case ApplyOutcome::Code::FutureRejected:
+            hadFutureRejected = true;
             addDiagnostic(QStringLiteral("warning"), runtime.config.id, reading.channelId,
                           QStringLiteral("future_timestamp"), outcome.message, nowUtc);
             break;
@@ -532,22 +528,26 @@ void IngestionService::processCandidate(SourceRuntime &runtime,
         }
     }
 
-    CheckpointRecord checkpoint;
-    checkpoint.fileKey = candidate.fileKey;
-    checkpoint.sourceId = runtime.config.id;
-    checkpoint.filePath = candidate.absolutePath;
-    checkpoint.size = candidate.size;
-    checkpoint.mtimeMs = candidate.mtimeMs;
-    checkpoint.contentHash = hash;
-    checkpoint.outcome = QStringLiteral("ok");
-    checkpoint.message = QStringLiteral("%1 bản ghi").arg(parsed.records.size());
-    checkpoint.processedAtUtc = nowUtc;
+    if (hadFutureRejected) {
+        if (!changed.isEmpty()) {
+            persist(changed, {}, nowUtc);
+            runtime.lastFileUtc = nowUtc;
+            emit sourceLastFileChanged(runtime.config.id, runtime.lastFileUtc);
+        }
+        runtime.backoffUntil.insert(candidate.fileKey, nowUtc.addSecs(kFutureRetrySeconds));
+        return;
+    }
+
+    const CheckpointRecord checkpoint = makeCheckpoint(
+        runtime.config.id, candidate, hash, QStringLiteral("ok"),
+        QStringLiteral("%1 bản ghi").arg(parsed.records.size()), nowUtc);
 
     persist(changed, {checkpoint}, nowUtc);
     runtime.memoryProcessed.insert(candidate.fileKey, memorySignature);
     runtime.failureCount.remove(candidate.fileKey);
     runtime.backoffUntil.remove(candidate.fileKey);
     runtime.lastFileUtc = nowUtc;
+    emit sourceLastFileChanged(runtime.config.id, runtime.lastFileUtc);
 
     addDiagnostic(QStringLiteral("info"), runtime.config.id, QString(),
                   QStringLiteral("file_imported"),
@@ -565,13 +565,23 @@ void IngestionService::persist(const QVector<Reading> &readings,
         return;
     QString error;
     if (!m_snapshotStore->saveTransaction(readings, checkpoints, &error)) {
-        m_storageHealthy = false;
+        const QString msg = QStringLiteral("Không ghi được snapshot/checkpoint: %1").arg(error);
+        setStorageHealthy(false, msg);
         addDiagnostic(QStringLiteral("error"), QString(), QString(),
-                      QStringLiteral("snapshot_save_failed"),
-                      QStringLiteral("Không ghi được snapshot/checkpoint: %1").arg(error), nowUtc);
+                      QStringLiteral("snapshot_save_failed"), msg, nowUtc);
     } else {
-        m_storageHealthy = true;
+        setStorageHealthy(true);
     }
+}
+
+void IngestionService::setStorageHealthy(bool healthy, const QString &message)
+{
+    if (m_storageHealthInitialised && m_storageHealthy == healthy && m_storageHealthMessage == message)
+        return;
+    m_storageHealthInitialised = true;
+    m_storageHealthy = healthy;
+    m_storageHealthMessage = message;
+    emit storageHealthChanged(healthy, message);
 }
 
 void IngestionService::saveCheckpoint(SourceRuntime &runtime,
